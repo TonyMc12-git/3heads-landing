@@ -41,7 +41,16 @@
     <p><strong>Public beta is coming soon.</strong></p>
 
   <div class="cta">
-    <a class="btn" href="mailto:tony.mcintosh@tmcsolutions.com?subject=Early%20access%20to%203heads.ai&body=Hi%20Tony%2C%0A%0AI%27d%20like%20early%20access%20to%203heads.ai.%0A%0AName%3A%0AUse%20case%3A%0A">Request early access</a>
+<form id="early-access" class="cta" onsubmit="return buildMailto(event)">
+  <input type="text" id="ea-name" placeholder="Your name" required
+         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px">
+  <input type="email" id="ea-email" placeholder="Your email (optional)"
+         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px">
+  <textarea id="ea-usecase" placeholder="What will you use 3heads.ai for?"
+            required rows="3"
+            style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px"></textarea>
+  <button class="btn" type="submit">Request early access</button>
+</form>
   </div>
   </main>
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
