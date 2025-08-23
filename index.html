@@ -40,19 +40,42 @@
     <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
     <p><strong>Public beta is coming soon.</strong></p>
 
-  <div class="cta">
-<form id="early-access" class="cta" onsubmit="return buildMailto(event)">
-  <input type="text" id="ea-name" placeholder="Your name" required
-         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px">
-  <input type="email" id="ea-email" placeholder="Your email (optional)"
-         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px">
-  <textarea id="ea-usecase" placeholder="What will you use 3heads.ai for?"
-            required rows="3"
-            style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px"></textarea>
-  <button class="btn" type="submit">Request early access</button>
-</form>
-  </div>
+<div class="cta">
+  <form id="early-access" onsubmit="return buildMailto(event)">
+    <input type="text" id="ea-name" placeholder="Your name" required
+           style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px">
+    <input type="email" id="ea-email" placeholder="Your email (optional)"
+           style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px">
+    <textarea id="ea-usecase" placeholder="What will you use 3heads.ai for?" required rows="3"
+              style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;min-width:240px"></textarea>
+    <button class="btn" type="submit">Request early access</button>
+  </form>
+</div>
   </main>
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
+<script>
+  function buildMailto(e){
+    e.preventDefault();
+    const name = document.getElementById('ea-name').value.trim();
+    const email = document.getElementById('ea-email').value.trim();
+    const usecase = document.getElementById('ea-usecase').value.trim();
+
+    const to = "tony.mcintosh@tmcsolutions.com";
+    const subject = encodeURIComponent("Early access to 3heads.ai");
+    const lines = [
+      "Hi Tony,",
+      "",
+      "I'd like early access to 3heads.ai.",
+      "",
+      `Name: ${name}`,
+      email ? `Email: ${email}` : "",
+      `Use case: ${usecase}`
+    ].filter(Boolean).join("\n");
+
+    const body = encodeURIComponent(lines);
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+    return false;
+  }
+</script>
 </body>
 </html>
