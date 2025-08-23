@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>3heads.ai — Coming Soon</title>
-  <meta name="description" content="Ask once. Compare answers from three leading AIs. Confidence, not guesswork. Coming soon." />
+  <meta name="description" content="Ask once. Compare answers from leading AIs side-by-side. When they disagree, we tell you — and why." />
   <meta property="og:title" content="3heads.ai — Coming Soon" />
-  <meta property="og:description" content="Ask once. Compare answers from three leading AIs. Confidence, not guesswork." />
+  <meta property="og:description" content="Ask once. Compare answers from leading AIs side-by-side. When they disagree, we tell you — and why." />
   <meta property="og:image" content="/puppies-logo.png" />
   <meta name="theme-color" content="#111111" />
   <style>
@@ -27,19 +27,23 @@
     .btn{
       border-radius:12px; padding:12px 16px; border:1px solid #111; background:#111; color:#fff;
       text-decoration:none; font-weight:600; cursor:pointer;
-      text-decoration:none; font-weight:600;
     }
-    .btn.alt{background:#fff; color:#111
-      text-decoration:none; font-weight:600; cursor:pointer;   /* 👈 add this */}
+
     footer{position:fixed; left:0; right:0; bottom:0; padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8}
-#ea-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;
-  align-items:center;justify-content:center;padding:16px;z-index:1000}
-#ea-modal.show{display:flex}
-#ea-card{background:#fff;border-radius:16px;padding:22px;max-width:560px;width:100%;
-  box-shadow:0 10px 30px rgba(0,0,0,.12)}
-#ea-close{position:absolute;top:10px;right:14px;background:transparent;border:0;
-  font-size:22px;cursor:pointer}
-.sr{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+
+    /* Modal */
+    #ea-modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+      align-items:center; justify-content:center; padding:16px; z-index:1000}
+    #ea-modal.show{display:flex}
+    #ea-card{background:#fff; border-radius:16px; padding:22px; max-width:560px; width:100%;
+      box-shadow:0 10px 30px rgba(0,0,0,.12); position:relative}
+    #ea-close{position:absolute; top:10px; right:14px; background:transparent; border:0;
+      font-size:22px; cursor:pointer}
+    #ea-form{display:grid; gap:10px}
+    .field{padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; width:100%}
+    .notice{font-size:14px; margin-top:6px; display:none}
+    .notice.show{display:block}
+    .sr{position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden}
   </style>
 </head>
 <body>
@@ -50,83 +54,84 @@
     <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
     <p><strong>Public beta is coming soon.</strong></p>
 
-<div class="cta">
-  <button class="btn" id="ea-open">Request early access</button>
-</div>
+    <div class="cta">
+      <button class="btn" id="ea-open">Request early access</button>
+    </div>
   </main>
+
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
-<script>
-  function buildMailto(e){
-    e.preventDefault();
-    const name = document.getElementById('ea-name').value.trim();
-    const email = document.getElementById('ea-email').value.trim();
-    const usecase = document.getElementById('ea-usecase').value.trim();
 
-    const to = "tony.mcintosh@tmcsolutions.com";
-    const subject = encodeURIComponent("Early access to 3heads.ai");
-    const lines = [
-      "Hi Tony,",
-      "",
-      "I'd like early access to 3heads.ai.",
-      "",
-      `Name: ${name}`,
-      email ? `Email: ${email}` : "",
-      `Use case: ${usecase}`
-    ].filter(Boolean).join("\n");
+  <!-- Modal -->
+  <div id="ea-modal" aria-hidden="true">
+    <div id="ea-card" role="dialog" aria-modal="true" aria-labelledby="ea-title">
+      <button id="ea-close" aria-label="Close">×</button>
+      <h2 id="ea-title" style="margin:0 0 10px">Request early access</h2>
 
-    const body = encodeURIComponent(lines);
-    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
-    return false;
-  }
-</script>
-<div id="ea-modal" aria-hidden="true">
-  <div id="ea-card" role="dialog" aria-modal="true" aria-labelledby="ea-title" style="position:relative">
-    <button id="ea-close" aria-label="Close">×</button>
-    <h2 id="ea-title" style="margin:0 0 10px">Request early access</h2>
+      <!-- Formspree form -->
+      <form id="ea-form" action="https://formspree.io/f/xblknnny" method="POST">
+        <label for="ea-name" class="sr">Your name</label>
+        <input class="field" type="text" id="ea-name" name="name" placeholder="Your name" required>
 
-<form id="early-access" class="grid gap-2"
-      action="https://formspree.io/f/xblknnny"
-      method="POST" onsubmit="return submitEA(event)">
-  <input type="text" name="name" id="ea-name" placeholder="Your name" required
-         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px">
-  <input type="email" name="email" id="ea-email" placeholder="Your email (optional)"
-         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px">
-  <textarea name="usecase" id="ea-usecase" placeholder="What will you use 3heads.ai for?" required rows="3"
-            style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px"></textarea>
-  <button class="btn" type="submit" id="ea-submit">Send</button>
-  <div id="ea-toast" style="font-size:14px;margin-top:6px;display:none">Sending…</div>
-  <div id="ea-done"  style="font-size:14px;margin-top:6px;display:none">Thanks! We’ll be in touch.</div>
-</form>
+        <label for="ea-email" class="sr">Your email (optional)</label>
+        <input class="field" type="email" id="ea-email" name="email" placeholder="Your email (optional)">
+
+        <label for="ea-usecase" class="sr">Use case</label>
+        <textarea class="field" id="ea-usecase" name="usecase" placeholder="What will you use 3heads.ai for?" required rows="3"></textarea>
+
+        <button class="btn" type="submit" id="ea-submit">Send</button>
+        <div id="ea-sending" class="notice">Sending…</div>
+        <div id="ea-success" class="notice">Thanks! We’ll be in touch soon.</div>
+        <div id="ea-error" class="notice">Sorry, something went wrong. Please email tony.mcintosh@tmcsolutions.com.</div>
+      </form>
+    </div>
   </div>
-</div>
-<script>
-async function submitEA(e){
-  e.preventDefault();
-  const form = e.target;
-  const toast = document.getElementById('ea-toast');
-  const done  = document.getElementById('ea-done');
-  toast.style.display = 'block';
 
-  try{
-    const res = await fetch(form.action, {
-      method: 'POST',
-      headers: { 'Accept': 'application/json' },
-      body: new FormData(form)
+  <script>
+    // Modal controls
+    const modal   = document.getElementById('ea-modal');
+    const openBtn = document.getElementById('ea-open');
+    const closeBtn= document.getElementById('ea-close');
+    openBtn.addEventListener('click', () => {
+      modal.classList.add('show');
+      setTimeout(()=>document.getElementById('ea-name').focus(), 50);
     });
-    toast.style.display = 'none';
-    if(res.ok){
-      done.style.display = 'block';
-      form.reset();
-    }else{
-      alert('Sorry, something went wrong. Please email tony.mcintosh@tmcsolutions.com');
-    }
-  }catch(err){
-    toast.style.display = 'none';
-    alert('Network error. Please email tony.mcintosh@tmcsolutions.com');
-  }
-  return false;
-}
-</script>
+    const closeModal = () => modal.classList.remove('show');
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
+    window.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
 
+    // Formspree async submit with toasts
+    const form     = document.getElementById('ea-form');
+    const sending  = document.getElementById('ea-sending');
+    const success  = document.getElementById('ea-success');
+    const errorBox = document.getElementById('ea-error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      sending.classList.add('show');
+      success.classList.remove('show');
+      errorBox.classList.remove('show');
+
+      try{
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          body: new FormData(form)
+        });
+        sending.classList.remove('show');
+        if(res.ok){
+          success.classList.add('show');
+          form.reset();
+          // Optional: auto-close modal after a moment
+          setTimeout(closeModal, 1600);
+        }else{
+          errorBox.classList.add('show');
+        }
+      }catch(err){
+        sending.classList.remove('show');
+        errorBox.classList.add('show');
+      }
+    });
+  </script>
 </body>
 </html>
