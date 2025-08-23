@@ -84,62 +84,49 @@
     <button id="ea-close" aria-label="Close">×</button>
     <h2 id="ea-title" style="margin:0 0 10px">Request early access</h2>
 
-    <form id="early-access" onsubmit="return buildMailto(event)" aria-label="Early access form" style="display:grid;gap:10px">
-      <label for="ea-name" class="sr">Your name</label>
-      <input type="text" id="ea-name" placeholder="Your name" required
-             style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px">
-
-      <label for="ea-email" class="sr">Your email (optional)</label>
-      <input type="email" id="ea-email" placeholder="Your email (optional)"
-             style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px">
-
-      <label for="ea-usecase" class="sr">Use case</label>
-      <textarea id="ea-usecase" placeholder="What will you use 3heads.ai for?" required rows="3"
-                style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px"></textarea>
-
-      <button class="btn" type="submit">Send email</button>
-      <div id="ea-toast" role="status" aria-live="polite" style="font-size:14px;display:none">
-        Opening your email app…
-      </div>
-    </form>
+<form id="early-access" class="grid gap-2"
+      action="https://formspree.io/f/xblknnny"
+      method="POST" onsubmit="return submitEA(event)">
+  <input type="text" name="name" id="ea-name" placeholder="Your name" required
+         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px">
+  <input type="email" name="email" id="ea-email" placeholder="Your email (optional)"
+         style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px">
+  <textarea name="usecase" id="ea-usecase" placeholder="What will you use 3heads.ai for?" required rows="3"
+            style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px"></textarea>
+  <button class="btn" type="submit" id="ea-submit">Send</button>
+  <div id="ea-toast" style="font-size:14px;margin-top:6px;display:none">Sending…</div>
+  <div id="ea-done"  style="font-size:14px;margin-top:6px;display:none">Thanks! We’ll be in touch.</div>
+</form>
   </div>
 </div>
 <script>
-  function buildMailto(e){
-    e.preventDefault();
-    const name = document.getElementById('ea-name').value.trim();
-    const email = document.getElementById('ea-email').value.trim();
-    const usecase = document.getElementById('ea-usecase').value.trim();
-    if(!name || !usecase) return false;
+async function submitEA(e){
+  e.preventDefault();
+  const form = e.target;
+  const toast = document.getElementById('ea-toast');
+  const done  = document.getElementById('ea-done');
+  toast.style.display = 'block';
 
-    document.getElementById('ea-toast').style.display = 'block';
-
-    const to = "tony.mcintosh@tmcsolutions.com";
-    const subject = encodeURIComponent("Early access to 3heads.ai");
-    const lines = [
-      "Hi Tony,","",
-      "I'd like early access to 3heads.ai.","",
-      `Name: ${name}`,
-      email ? `Email: ${email}` : "",
-      `Use case: ${usecase}`
-    ].filter(Boolean).join("\n");
-
-    window.location.href = `mailto:${to}?subject=${subject}&body=${encodeURIComponent(lines)}`;
-    return false;
+  try{
+    const res = await fetch(form.action, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: new FormData(form)
+    });
+    toast.style.display = 'none';
+    if(res.ok){
+      done.style.display = 'block';
+      form.reset();
+    }else{
+      alert('Sorry, something went wrong. Please email tony.mcintosh@tmcsolutions.com');
+    }
+  }catch(err){
+    toast.style.display = 'none';
+    alert('Network error. Please email tony.mcintosh@tmcsolutions.com');
   }
-
-  // Modal controls
-  const modal = document.getElementById('ea-modal');
-  const openBtn = document.getElementById('ea-open');
-  const closeBtn = document.getElementById('ea-close');
-
-  openBtn.addEventListener('click', () => {
-    modal.classList.add('show');
-    setTimeout(() => document.getElementById('ea-name').focus(), 50);
-  });
-  closeBtn.addEventListener('click', () => modal.classList.remove('show'));
-  modal.addEventListener('click', (e) => { if(e.target === modal) modal.classList.remove('show'); });
-  window.addEventListener('keydown', (e) => { if(e.key === 'Escape') modal.classList.remove('show'); });
+  return false;
+}
 </script>
+
 </body>
 </html>
