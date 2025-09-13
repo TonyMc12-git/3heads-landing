@@ -1,109 +1,103 @@
-cat > netlify/functions/compare.js <<'EOF'
 // netlify/functions/compare.js
+// Node 18+ on Netlify has global fetch. Uses env keys: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY.
 
 exports.handler = async (event) => {
-  const origin = event.headers.origin || "";
-  const allowed = [
-    "https://3heads.ai",
-    "http://localhost:8888",
-    "http://localhost:3000",
-  ];
-  const cors = {
-    "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : "https://3heads.ai",
-    "Access-Control-Allow-Methods": "POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,Authorization",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 204, headers: cors, body: "" };
-  }
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers: { ...cors, "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "POST only" }),
-    };
-  }
-
   try {
-    const body = JSON.parse(event.body || "{}");
-    const prompt = (body.prompt || "Say hello briefly.").toString();
+    if (event.httpMethod !== 'POST') {
+      return json(405, { error: 'Method Not Allowed' });
+    }
 
-    // --- OpenAI ---
-    let openaiAnswer = "(OpenAI error)";
-    try {
-      const r = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        openaiAnswer = j.choices?.[0]?.message?.content ?? "";
-      }
-    } catch {}
+    const { prompt = 'Say hello briefly.' } = JSON.parse(event.body || '{}');
 
-    // --- Claude (Anthropic) ---
-    let claudeAnswer = "(Claude error)";
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": process.env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-3-haiku-20240307",
-          max_tokens: 300,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        claudeAnswer = j.content?.[0]?.text ?? "";
-      }
-    } catch {}
+    // Kick off all three in parallel
+    const [openai, claude, gemini] = await Promise.all([
+      callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
+      callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
+      callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
+    ]);
 
-    // --- Gemini (uses GEMINI_API_KEY) ---
-    let geminiAnswer = "(Gemini error)";
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        }),
-      });
-      if (r.ok) {
-        const j = await r.json();
-        geminiAnswer = j.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ?? "";
-      }
-    } catch {}
-
-    return {
-      statusCode: 200,
-      headers: { ...cors, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        openai: openaiAnswer,
-        claude: claudeAnswer,
-        gemini: geminiAnswer,
-      }),
-    };
+    return json(200, { prompt, openai, claude, gemini });
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
-      body: JSON.stringify({ error: String(err) }),
-    };
+    return json(500, { error: msg(err) });
   }
 };
-EOF
+
+// ---------- helpers ----------
+
+const json = (statusCode, obj) => ({
+  statusCode,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(obj),
+});
+
+const msg = (e) => (e && e.message) ? e.message : String(e);
+
+// ---------- providers ----------
+
+async function callOpenAI(prompt) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('Missing OPENAI_API_KEY');
+
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  return data.choices?.[0]?.message?.content ?? '';
+}
+
+async function callClaude(prompt) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('Missing ANTHROPIC_API_KEY');
+
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  // Anthropics returns content as array of blocks; take first text block.
+  return data.content?.[0]?.text ?? '';
+}
+
+async function callGemini(prompt) {
+  const key = process.env.GEMINI_API_KEY; // you asked to use GEMINI_API_KEY
+  if (!key) throw new Error('Missing GEMINI_API_KEY');
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    })
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+
+  const text = (data.candidates?.[0]?.content?.parts || [])
+    .map(p => p.text || '')
+    .join('');
+  return text;
+}
