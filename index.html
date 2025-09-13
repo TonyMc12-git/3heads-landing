@@ -73,18 +73,14 @@
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
  <script>
-  // If running inside Codespaces preview, use relative "/compare".
-  // Otherwise (on 3heads.ai), call the Codespaces server explicitly.
-   const BASE = location.hostname.endsWith('app.github.dev')
-    ? ''
-    : 'https://redesigned-lamp-r4xxq575wx62rv6-3000.app.github.dev';
-    
+  // Always call your own function on the same domain:
+  const BASE = '/.netlify/functions';
+
   async function compareNow() {
     const prompt = (document.getElementById('prompt').value || '').trim();
     if (!prompt) return;
 
     document.getElementById('status').textContent = 'Comparing…';
-
     try {
       const res = await fetch(`${BASE}/compare`, {
         method: 'POST',
