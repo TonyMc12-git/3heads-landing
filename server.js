@@ -15,6 +15,11 @@ app.use(express.json());
 // Serve the front-end from the same server
 app.use(express.static(__dirname));
 
+// Serve the compare UI at /app
+app.get("/app", (req, res) => {
+  res.sendFile(path.join(__dirname, "app.html"));
+});
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
