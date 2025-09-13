@@ -2,12 +2,22 @@ import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+// Serve the front-end from the same server
+app.use(express.static(__dirname));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
@@ -58,9 +68,14 @@ app.post("/claude", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-latest",
+        model: "claude-3-haiku-20240307",   // <-- use Haiku
         max_tokens: 300,
-        messages: [{ role: "user", content: prompt }]
+        messages: [
+          {
+            role: "user",
+            content: [{ type: "text", text: prompt }]  // correct schema
+          }
+        ]
       })
     });
 
@@ -70,6 +85,7 @@ app.post("/claude", async (req, res) => {
     }
 
     const data = await r.json();
+    // Claude responses: content is an array of blocks; first is usually {type:"text", text:"..."}
     const answer = data.content?.[0]?.text ?? "";
     res.json({ answer, raw: data });
   } catch (err) {
@@ -117,25 +133,35 @@ app.post("/gemini", async (req, res) => {
 
 app.post("/compare", async (req, res) => {
   const prompt = req.body?.prompt ?? "Say hello briefly.";
+  const base = `http://localhost:${process.env.PORT || 3000}`;
+
   try {
     const [o, c, g] = await Promise.all([
-      fetch("http://localhost:" + (process.env.PORT || 3000) + "/openai", {
+      fetch(`${base}/openai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      }).then(r => r.json()),
-      fetch("http://localhost:" + (process.env.PORT || 3000) + "/claude", {
+        body: JSON.stringify({ prompt })
+      }),
+      fetch(`${base}/claude`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      }).then(r => r.json()),
-      fetch("http://localhost:" + (process.env.PORT || 3000) + "/gemini", {
+        body: JSON.stringify({ prompt })
+      }),
+      fetch(`${base}/gemini`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      }).then(r => r.json()),
+        body: JSON.stringify({ prompt })
+      })
     ]);
-    res.json({ prompt, openai: o, claude: c, gemini: g });
+
+    const [oj, cj, gj] = await Promise.all([o.json(), c.json(), g.json()]);
+    res.json({
+      prompt,
+      openai: oj.answer ?? oj.error,
+      claude: cj.answer ?? cj.error,
+      gemini: gj.answer ?? gj.error,
+      raw: { openai: oj, claude: cj, gemini: gj }
+    });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
