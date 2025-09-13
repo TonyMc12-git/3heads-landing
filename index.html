@@ -3,104 +3,148 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>3heads.ai — Coming Soon</title>
+  <title>3heads.ai</title>
   <meta name="description" content="Ask once. Compare answers from leading AIs side-by-side. When they disagree, we tell you — and why." />
-  <meta property="og:title" content="3heads.ai — Coming Soon" />
+  <meta property="og:title" content="3heads.ai" />
   <meta property="og:description" content="Ask once. Compare answers from leading AIs side-by-side. When they disagree, we tell you — and why." />
   <meta property="og:image" content="/puppies-logo.png" />
   <meta name="theme-color" content="#111111" />
   <style>
-    :root { --bg:#ffffff; --fg:#0f172a; --muted:#475569; --accent:#111111; }
-    *{box-sizing:border-box}
-    html,body{height:100%}
+    :root { --bg:#ffffff; --fg:#0f172a; --muted:#475569; --accent:#111111; --card:#ffffff; --line:#e5e7eb; }
+    *{ box-sizing:border-box }
+    html, body { height:100% }
+    /* Layout: footer sits at the bottom, never overlays content */
     body{
       margin:0; background:var(--bg); color:var(--fg);
       font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,Helvetica,sans-serif;
-      display:grid; place-items:center;
+      display:flex; flex-direction:column; min-height:100vh;
     }
-    .wrap{max-width:720px; padding:32px; text-align:center}
-    .logo{width:160px; height:auto; margin:0 auto 20px; display:block; filter: contrast(1.05)}
-    h1{font-size:clamp(28px,5vw,42px); line-height:1.1; margin:10px 0 12px}
-    p{margin:8px 0; font-size:clamp(16px,2.4vw,18px); color:var(--muted)}
-    .tag{display:inline-block; margin-top:14px; padding:8px 12px; border:1px solid #e5e7eb; border-radius:999px; font-size:14px; color:#111}
-    .cta{margin-top:22px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+    main{ flex:1; display:grid; place-items:center; }
+    .wrap{ max-width:760px; width:100%; padding:32px; text-align:center }
+
+    .logo{ width:160px; height:auto; margin:0 auto 20px; display:block; filter:contrast(1.05) }
+    h1{ font-size:clamp(28px,5vw,42px); line-height:1.1; margin:10px 0 12px }
+    p{ margin:8px 0; font-size:clamp(16px,2.4vw,18px); color:var(--muted) }
+
+    /* Tag: no border so it doesn’t look editable/clickable */
+    .tag{
+      display:inline-block; margin-top:14px; padding:8px 12px;
+      border:none; border-radius:999px; font-size:14px; color:#111;
+      background:#f3f4f6;
+    }
+
+    /* Input row: textarea + Fetch! button on the right (like Google) */
+    .input-row{
+      margin-top:22px; display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;
+    }
+    .field{
+      flex:1 1 520px; min-width:260px;
+      padding:12px 14px; border:1px solid var(--line); border-radius:10px; width:100%;
+      font:inherit; resize:vertical;
+    }
     .btn{
       border-radius:12px; padding:12px 16px; border:1px solid #111; background:#111; color:#fff;
-      text-decoration:none; font-weight:600; cursor:pointer;
+      font-weight:600; cursor:pointer; white-space:nowrap;
     }
-    footer{position:fixed; left:0; right:0; bottom:0; padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8}
-    .field{padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; width:100%}
-    .card{border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fff; text-align:left}
-    .card h3{ margin:0 0 8px; font-size:16px; }
-    #results .body{ color:#111; }
+    .btn[disabled]{ opacity:.6; cursor:default }
+
+    .status{ align-self:center; color:#64748b; font-size:14px }
+
+    /* Results */
+    .cards{ display:grid; gap:16px; margin-top:18px; grid-template-columns:1fr; text-align:left }
+    .card{ border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--card) }
+    .card h3{ margin:0 0 8px; font-size:16px }
+    #results .body{ color:#111 }
+
     @media (min-width: 860px){
-      #results{ grid-template-columns: repeat(3, 1fr); }
+      .cards{ grid-template-columns: repeat(3, 1fr) }
     }
+
+    footer{ padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8; }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <img src="/puppies-logo.png" alt="3heads.ai logo — three puppies in a box" class="logo" />
-    <h1>3heads.ai</h1>
-    <p class="tag">Because three heads are better than one 🐶🐶🐶</p>
-    <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
-    <p><strong>Public beta is coming soon.</strong></p>
+  <main>
+    <div class="wrap">
+      <img src="/puppies-logo.png" alt="3heads.ai logo — three puppies in a box" class="logo" />
+      <h1>3heads.ai</h1>
+      <p class="tag">Because three heads are better than one 🐶🐶🐶</p>
+      <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
 
-    <div class="cta">
-      <button class="btn" id="ea-open">Request early access</button>
+      <!-- Prompt + results -->
+      <section id="app" aria-label="Compare answers">
+        <label for="prompt" style="display:block; margin:14px 0 6px; color:#64748b;">Your question</label>
+
+        <div class="input-row">
+          <textarea id="prompt" class="field" rows="4"
+            placeholder="Type your question (e.g., “What is the capital of Bolivia?”)"></textarea>
+
+          <button class="btn" id="ask-btn">Fetch!</button>
+          <span id="status" class="status"></span>
+        </div>
+
+        <div id="results" class="cards" aria-live="polite">
+          <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
+          <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
+          <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
+        </div>
+      </section>
     </div>
-
-    <!-- Prompt + results -->
-    <section id="app" style="margin-top:28px;">
-      <label for="prompt" class="sr">Your question</label>
-      <textarea id="prompt" class="field"
-        placeholder="Type your question (e.g., “What is the capital of Bolivia?”)"
-        rows="4" style="max-width:720px; width:100%;"></textarea>
-
-      <div class="cta" style="margin-top:12px;">
-        <button class="btn" id="ask-btn">Compare answers</button>
-        <span id="status" style="align-self:center; color:#64748b;"></span>
-      </div>
-
-      <div id="results" style="display:grid; gap:16px; margin-top:18px; grid-template-columns: 1fr;">
-        <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
-        <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
-        <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
-      </div>
-    </section>
   </main>
 
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
- <script>
-  // Always call your own function on the same domain:
-  const BASE = '/.netlify/functions';
+  <script>
+    // Frontend calls the Netlify function directly in production.
+    const COMPARE_URL = '/.netlify/functions/compare';
 
-  async function compareNow() {
-    const prompt = (document.getElementById('prompt').value || '').trim();
-    if (!prompt) return;
+    const askBtn   = document.getElementById('ask-btn');
+    const promptEl = document.getElementById('prompt');
+    const statusEl = document.getElementById('status');
 
-    document.getElementById('status').textContent = 'Comparing…';
-    try {
-      const res = await fetch(`${BASE}/compare`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
-      });
-      if (!res.ok) throw new Error(await res.text());
+    const setCard = (id, text) => {
+      const el = document.querySelector(`#${id} .body`);
+      if (el) el.textContent = text || '';
+    };
 
-      const data = await res.json();
-      document.querySelector('#openai-card .body').textContent = data.openai || '—';
-      document.querySelector('#claude-card .body').textContent = data.claude || '—';
-      document.querySelector('#gemini-card .body').textContent = data.gemini || '—';
-      document.getElementById('status').textContent = 'Done.';
-    } catch (e) {
-      document.getElementById('status').textContent = 'Error. Please try again.';
-      console.error(e);
+    async function compareNow() {
+      const prompt = (promptEl.value || '').trim();
+      if (!prompt) { promptEl.focus(); return; }
+
+      askBtn.disabled = true;
+      statusEl.textContent = 'Comparing…';
+      setCard('openai-card',''); setCard('claude-card',''); setCard('gemini-card','');
+
+      try {
+        const res = await fetch(COMPARE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        setCard('openai-card', data.openai || '—');
+        setCard('claude-card', data.claude || '—');
+        setCard('gemini-card', data.gemini || '—');
+        statusEl.textContent = 'Done.';
+      } catch (err) {
+        statusEl.textContent = 'Error. Please try again.';
+        console.error(err);
+      } finally {
+        askBtn.disabled = false;
+      }
     }
-  }
 
-  document.getElementById('ask-btn').addEventListener('click', compareNow);
-</script>
+    askBtn.addEventListener('click', compareNow);
+    // Submit with Ctrl/Cmd+Enter
+    promptEl.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') compareNow();
+    });
+  </script>
 </body>
 </html>
