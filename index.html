@@ -1,138 +1,122 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <link rel="icon" type="image/png" href="favicon.png">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>3heads.ai — Coming Soon</title>
-  <meta name="description" content="Ask once. Compare answers from leading AIs side-by-side. When they disagree, we tell you — and why." />
-  <meta property="og:title" content="3heads.ai — Coming Soon" />
-  <meta property="og:description" content="Ask once. Compare answers from leading AIs side-by-side. When they disagree, we tell you — and why." />
-  <meta property="og:image" content="/puppies-logo.png" />
-  <meta name="theme-color" content="#111111" />
+  <title>3heads.ai — Compare answers</title>
   <style>
-    :root { --bg:#ffffff; --fg:#0f172a; --muted:#475569; --accent:#111111; }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:var(--bg); color:var(--fg);
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,Helvetica,sans-serif;
-      display:grid; place-items:center;
+    :root {
+      --bg: #0b0c10; --panel: #14161b; --ink: #f5f7fa; --muted:#9aa3af;
+      --accent:#7bd389; --accent-2:#7bb2ff; --accent-3:#ffb86b; --danger:#ff6b6b;
+      --card: #181b21; --border:#252a33;
     }
-    .wrap{max-width:720px; padding:32px; text-align:center}
-    .logo{width:160px; height:auto; margin:0 auto 20px; display:block; filter: contrast(1.05)}
-    h1{font-size:clamp(28px,5vw,42px); line-height:1.1; margin:10px 0 12px}
-    p{margin:8px 0; font-size:clamp(16px,2.4vw,18px); color:var(--muted)}
-    .tag{display:inline-block; margin-top:14px; padding:8px 12px; border:1px solid #e5e7eb; border-radius:999px; font-size:14px; color:#111}
-    .cta{margin-top:22px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
-    .btn{
-      border-radius:12px; padding:12px 16px; border:1px solid #111; background:#111; color:#fff;
-      text-decoration:none; font-weight:600; cursor:pointer;
+    html,body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width: 920px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    p.sub { color: var(--muted); margin: 0 0 24px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+    textarea { width:100%; min-height: 96px; padding:14px; border-radius: 12px; background: var(--panel); color: var(--ink); border:1px solid var(--border); outline:none; resize: vertical; }
+    button {
+      padding: 12px 16px; border-radius: 12px; background: var(--ink); color: #0c1117;
+      font-weight: 600; border: none; cursor: pointer;
     }
-
-    footer{position:fixed; left:0; right:0; bottom:0; padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8}
-
-    /* Modal */
-    #ea-modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
-      align-items:center; justify-content:center; padding:16px; z-index:1000}
-    #ea-modal.show{display:flex}
-    #ea-card{background:#fff; border-radius:16px; padding:22px; max-width:560px; width:100%;
-      box-shadow:0 10px 30px rgba(0,0,0,.12); position:relative}
-    #ea-close{position:absolute; top:10px; right:14px; background:transparent; border:0;
-      font-size:22px; cursor:pointer}
-    #ea-form{display:grid; gap:10px}
-    .field{padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; width:100%}
-    .notice{font-size:14px; margin-top:6px; display:none}
-    .notice.show{display:block}
-    .sr{position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden}
+    button[disabled] { opacity: .6; cursor: not-allowed; }
+    .grid { margin-top: 20px; display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
+    .card { background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 14px; min-height: 160px; display:flex; flex-direction:column; gap:10px; }
+    .badge { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; letter-spacing:.2px; padding:6px 10px; border-radius:999px; border:1px solid var(--border); }
+    .badge .dot{ width:8px; height:8px; border-radius:50%; }
+    .o .dot{ background:var(--accent); } .c .dot{ background:var(--accent-2);} .g .dot{ background:var(--accent-3);}
+    .small { color: var(--muted); font-size: 12px; }
+    .error { color: var(--danger); white-space: pre-wrap; }
+    .footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <img src="/puppies-logo.png" alt="3heads.ai logo — three puppies in a box" class="logo" />
+  <div class="wrap">
     <h1>3heads.ai</h1>
-    <p class="tag">Because three heads are better than one 🐶🐶🐶</p>
-    <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
-    <p><strong>Public beta is coming soon.</strong></p>
+    <p class="sub">Ask once. See answers side-by-side from OpenAI, Claude, and Gemini.</p>
 
-    <div class="cta">
-      <button class="btn" id="ea-open">Request early access</button>
+    <div class="row">
+      <textarea id="prompt" placeholder="Type your question… e.g., “Give me one sentence about alpacas.”"></textarea>
+      <div>
+        <button id="go">Compare answers</button>
+      </div>
     </div>
-  </main>
 
-  <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
+    <div id="status" class="small" style="margin-top:8px;"></div>
 
-  <!-- Modal -->
-  <div id="ea-modal" aria-hidden="true">
-    <div id="ea-card" role="dialog" aria-modal="true" aria-labelledby="ea-title">
-      <button id="ea-close" aria-label="Close">×</button>
-      <h2 id="ea-title" style="margin:0 0 10px">Request early access</h2>
-
-      <!-- Formspree form -->
-      <form id="ea-form" action="https://formspree.io/f/xblknnny" method="POST">
-        <label for="ea-name" class="sr">Your name</label>
-        <input class="field" type="text" id="ea-name" name="name" placeholder="Your name" required>
-
-        <label for="ea-email" class="sr">Your email (optional)</label>
-        <input class="field" type="email" id="ea-email" name="email" placeholder="Your email (optional)">
-
-        <label for="ea-usecase" class="sr">Use case</label>
-        <textarea class="field" id="ea-usecase" name="usecase" placeholder="What will you use 3heads.ai for?" required rows="3"></textarea>
-
-        <button class="btn" type="submit" id="ea-submit">Send</button>
-        <div id="ea-sending" class="notice">Sending…</div>
-        <div id="ea-success" class="notice">Thanks! We’ll be in touch soon.</div>
-        <div id="ea-error" class="notice">Sorry, something went wrong. Please email tony.mcintosh@tmcsolutions.com.</div>
-      </form>
+    <div class="grid" style="margin-top:16px;">
+      <div class="card" id="card-openai">
+        <div class="badge o"><span class="dot"></span>OpenAI</div>
+        <div id="openai-text" class="small">No result yet.</div>
+      </div>
+      <div class="card" id="card-claude">
+        <div class="badge c"><span class="dot"></span>Claude</div>
+        <div id="claude-text" class="small">No result yet.</div>
+      </div>
+      <div class="card" id="card-gemini">
+        <div class="badge g"><span class="dot"></span>Gemini</div>
+        <div id="gemini-text" class="small">No result yet.</div>
+      </div>
     </div>
+
+    <div class="footer">We don’t store your prompts. Each compare call is fresh.</div>
   </div>
 
   <script>
-    // Modal controls
-    const modal   = document.getElementById('ea-modal');
-    const openBtn = document.getElementById('ea-open');
-    const closeBtn= document.getElementById('ea-close');
-    openBtn.addEventListener('click', () => {
-      modal.classList.add('show');
-      setTimeout(()=>document.getElementById('ea-name').focus(), 50);
-    });
-    const closeModal = () => modal.classList.remove('show');
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
-    window.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
+    const $ = (id) => document.getElementById(id);
+    const btn = $("go");
+    const promptEl = $("prompt");
+    const statusEl = $("status");
+    const openaiEl = $("openai-text");
+    const claudeEl = $("claude-text");
+    const geminiEl = $("gemini-text");
 
-    // Formspree async submit with toasts
-    const form     = document.getElementById('ea-form');
-    const sending  = document.getElementById('ea-sending');
-    const success  = document.getElementById('ea-success');
-    const errorBox = document.getElementById('ea-error');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      sending.classList.add('show');
-      success.classList.remove('show');
-      errorBox.classList.remove('show');
-
-      try{
-        const res = await fetch(form.action, {
-          method: 'POST',
-          headers: { 'Accept': 'application/json' },
-          body: new FormData(form)
-        });
-        sending.classList.remove('show');
-        if(res.ok){
-          success.classList.add('show');
-          form.reset();
-          // Optional: auto-close modal after a moment
-          setTimeout(closeModal, 1600);
-        }else{
-          errorBox.classList.add('show');
-        }
-      }catch(err){
-        sending.classList.remove('show');
-        errorBox.classList.add('show');
+    async function compare() {
+      const prompt = (promptEl.value || "").trim();
+      if (!prompt) {
+        promptEl.focus();
+        return;
       }
+      btn.disabled = true;
+      statusEl.textContent = "Comparing…";
+      openaiEl.textContent = "Loading…";
+      claudeEl.textContent = "Loading…";
+      geminiEl.textContent  = "Loading…";
+
+      try {
+        const r = await fetch("/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        if (!r.ok) {
+          const t = await r.text();
+          statusEl.innerHTML = `<span class="error">Error ${r.status}: ${t}</span>`;
+          openaiEl.textContent = claudeEl.textContent = geminiEl.textContent = "—";
+          return;
+        }
+        const data = await r.json();
+        openaiEl.textContent = data.openai || "—";
+        claudeEl.textContent = data.claude || "—";
+        geminiEl.textContent  = data.gemini || "—";
+        statusEl.textContent = "Done.";
+      } catch (err) {
+        statusEl.innerHTML = `<span class="error">${String(err)}</span>`;
+        openaiEl.textContent = claudeEl.textContent = geminiEl.textContent = "—";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener("click", compare);
+    promptEl.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "enter") compare();
     });
+
+    // Optional: sample prompt to make testing quick
+    promptEl.value = "Give me one sentence about alpacas.";
   </script>
 </body>
 </html>
