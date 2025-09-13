@@ -29,25 +29,8 @@
       text-decoration:none; font-weight:600; cursor:pointer;
     }
     footer{position:fixed; left:0; right:0; bottom:0; padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8}
-
-    /* Modal */
-    #ea-modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
-      align-items:center; justify-content:center; padding:16px; z-index:1000}
-    #ea-modal.show{display:flex}
-    #ea-card{background:#fff; border-radius:16px; padding:22px; max-width:560px; width:100%;
-      box-shadow:0 10px 30px rgba(0,0,0,.12); position:relative}
-    #ea-close{position:absolute; top:10px; right:14px; background:transparent; border:0;
-      font-size:22px; cursor:pointer}
-    #ea-form{display:grid; gap:10px}
     .field{padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; width:100%}
-    .notice{font-size:14px; margin-top:6px; display:none}
-    .notice.show{display:block}
-    .sr{position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden}
-
-    /* Compare cards */
-    .card{
-      border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fff;
-    }
+    .card{border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fff; text-align:left}
     .card h3{ margin:0 0 8px; font-size:16px; }
     #results .body{ color:#111; }
     @media (min-width: 860px){
@@ -79,10 +62,7 @@
         <span id="status" style="align-self:center; color:#64748b;"></span>
       </div>
 
-      <!-- Results grid -->
-      <div id="results" style="
-        display:grid; gap:16px; margin-top:18px;
-        grid-template-columns: 1fr; text-align:left;">
+      <div id="results" style="display:grid; gap:16px; margin-top:18px; grid-template-columns: 1fr;">
         <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
         <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
         <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
@@ -92,81 +72,16 @@
 
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
-  <!-- Modal -->
-  <div id="ea-modal" aria-hidden="true">
-    <div id="ea-card" role="dialog" aria-modal="true" aria-labelledby="ea-title">
-      <button id="ea-close" aria-label="Close">×</button>
-      <h2 id="ea-title" style="margin:0 0 10px">Request early access</h2>
-
-      <!-- Formspree form -->
-      <form id="ea-form" action="https://formspree.io/f/xblknnny" method="POST">
-        <label for="ea-name" class="sr">Your name</label>
-        <input class="field" type="text" id="ea-name" name="name" placeholder="Your name" required>
-
-        <label for="ea-email" class="sr">Your email (optional)</label>
-        <input class="field" type="email" id="ea-email" name="email" placeholder="Your email (optional)">
-
-        <label for="ea-usecase" class="sr">Use case</label>
-        <textarea class="field" id="ea-usecase" name="usecase" placeholder="What will you use 3heads.ai for?" required rows="3"></textarea>
-
-        <button class="btn" type="submit" id="ea-submit">Send</button>
-        <div id="ea-sending" class="notice">Sending…</div>
-        <div id="ea-success" class="notice">Thanks! We’ll be in touch soon.</div>
-        <div id="ea-error" class="notice">Sorry, something went wrong. Please email tony.mcintosh@tmcsolutions.com.</div>
-      </form>
-    </div>
-  </div>
-
   <script>
-    // Modal controls
-    const modal   = document.getElementById('ea-modal');
-    const openBtn = document.getElementById('ea-open');
-    const closeBtn= document.getElementById('ea-close');
-    openBtn.addEventListener('click', () => {
-      modal.classList.add('show');
-      setTimeout(()=>document.getElementById('ea-name').focus(), 50);
-    });
-    const closeModal = () => modal.classList.remove('show');
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
-    window.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
-
-    // Formspree async submit with toasts
-    const form     = document.getElementById('ea-form');
-    const sending  = document.getElementById('ea-sending');
-    const success  = document.getElementById('ea-success');
-    const errorBox = document.getElementById('ea-error');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      sending.classList.add('show');
-      success.classList.remove('show');
-      errorBox.classList.remove('show');
-
-      try{
-        const res = await fetch(form.action, {
-          method: 'POST',
-          headers: { 'Accept': 'application/json' },
-          body: new FormData(form)
-        });
-        sending.classList.remove('show');
-        if(res.ok){
-          success.classList.add('show');
-          form.reset();
-          setTimeout(closeModal, 1600);
-        }else{
-          errorBox.classList.add('show');
-        }
-      }catch(err){
-        sending.classList.remove('show');
-        errorBox.classList.add('show');
-      }
-    });
-
     // ---- Compare UI wiring ----
     const askBtn   = document.getElementById('ask-btn');
     const promptEl = document.getElementById('prompt');
     const statusEl = document.getElementById('status');
+
+    // If running on Codespaces (app.github.dev or localhost:3000) use relative URL, otherwise call deployed backend
+    const API_BASE = (location.hostname.endsWith('app.github.dev') || location.port === '3000')
+      ? ''
+      : 'https://YOUR-CODESPACES-URL-3000.app.github.dev'; // <-- replace with your live server URL
 
     const setCard = (id, text) => {
       document.querySelector(`#${id} .body`).textContent = text || '';
@@ -181,7 +96,7 @@
       setCard('openai-card',''); setCard('claude-card',''); setCard('gemini-card','');
 
       try {
-        const res = await fetch('/compare', {
+        const res = await fetch(`${API_BASE}/compare`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt })
