@@ -72,59 +72,39 @@
 
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
-  <script>
-    // ---- Compare UI wiring ----
-    const askBtn   = document.getElementById('ask-btn');
-    const promptEl = document.getElementById('prompt');
-    const statusEl = document.getElementById('status');
+ <script>
+  // If running inside Codespaces preview, use relative "/compare".
+  // Otherwise (on 3heads.ai), call the Codespaces server explicitly.
+  const BASE = location.hostname.endsWith('app.github.dev')
+    ? ''
+    : 'https://redesigned-lamp-r4xxq575wx62rv6-3000.app.github.dev';  // <-- your real Codespaces URL (https)
 
-    // If running on Codespaces (app.github.dev or localhost:3000) use relative URL, otherwise call deployed backend
-    const API_BASE = (location.hostname.endsWith('app.github.dev') || location.port === '3000')
-      ? ''
-      : 'https://YOUR-CODESPACES-URL-3000.app.github.dev'; // <-- replace with your live server URL
+  async function compareNow() {
+    const prompt = (document.getElementById('prompt').value || '').trim();
+    if (!prompt) return;
 
-    const setCard = (id, text) => {
-      document.querySelector(`#${id} .body`).textContent = text || '';
-    };
+    document.getElementById('status').textContent = 'Comparing…';
 
-    async function compareNow() {
-      const prompt = (promptEl.value || '').trim();
-      if (!prompt) { promptEl.focus(); return; }
+    try {
+      const res = await fetch(`${BASE}/compare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      if (!res.ok) throw new Error(await res.text());
 
-      askBtn.disabled = true;
-      statusEl.textContent = 'Comparing…';
-      setCard('openai-card',''); setCard('claude-card',''); setCard('gemini-card','');
-
-      try {
-        const res = await fetch(`${API_BASE}/compare`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        setCard('openai-card', data.openai || '—');
-        setCard('claude-card', data.claude || '—');
-        setCard('gemini-card', data.gemini || '—');
-        statusEl.textContent = 'Done.';
-      } catch (err) {
-        statusEl.textContent = 'Error. Please try again.';
-        setCard('openai-card',''); setCard('claude-card',''); setCard('gemini-card','');
-        console.error(err);
-      } finally {
-        askBtn.disabled = false;
-      }
+      const data = await res.json();
+      document.querySelector('#openai-card .body').textContent = data.openai || '—';
+      document.querySelector('#claude-card .body').textContent = data.claude || '—';
+      document.querySelector('#gemini-card .body').textContent = data.gemini || '—';
+      document.getElementById('status').textContent = 'Done.';
+    } catch (e) {
+      document.getElementById('status').textContent = 'Error. Please try again.';
+      console.error(e);
     }
+  }
 
-    askBtn?.addEventListener('click', compareNow);
-    promptEl?.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') compareNow();
-    });
-  </script>
+  document.getElementById('ask-btn').addEventListener('click', compareNow);
+</script>
 </body>
 </html>
