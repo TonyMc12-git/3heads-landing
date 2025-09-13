@@ -8,6 +8,8 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
 /**
  * POST /openai
@@ -56,7 +58,7 @@ app.post("/claude", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
+        model: "claude-3-5-sonnet-latest",
         max_tokens: 300,
         messages: [{ role: "user", content: prompt }]
       })
@@ -84,7 +86,7 @@ app.post("/gemini", async (req, res) => {
     const prompt = req.body?.prompt ?? "Say hello briefly.";
     const endpoint =
       `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `gemini-1.5-flash-latest:generateContent?key=${process.env.GOOGLE_API_KEY}`;
+      `gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const r = await fetch(endpoint, {
       method: "POST",
@@ -108,6 +110,32 @@ app.post("/gemini", async (req, res) => {
     const answer =
       data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ?? "";
     res.json({ answer, raw: data });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post("/compare", async (req, res) => {
+  const prompt = req.body?.prompt ?? "Say hello briefly.";
+  try {
+    const [o, c, g] = await Promise.all([
+      fetch("http://localhost:" + (process.env.PORT || 3000) + "/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      }).then(r => r.json()),
+      fetch("http://localhost:" + (process.env.PORT || 3000) + "/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      }).then(r => r.json()),
+      fetch("http://localhost:" + (process.env.PORT || 3000) + "/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      }).then(r => r.json()),
+    ]);
+    res.json({ prompt, openai: o, claude: c, gemini: g });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
