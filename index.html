@@ -75,10 +75,10 @@
  <script>
   // If running inside Codespaces preview, use relative "/compare".
   // Otherwise (on 3heads.ai), call the Codespaces server explicitly.
-  const BASE = location.hostname.endsWith('app.github.dev')
+   const BASE = location.hostname.endsWith('app.github.dev')
     ? ''
-    : 'https://redesigned-lamp-r4xxq575wx62rv6-3000.app.github.dev';  // <-- your real Codespaces URL (https)
-
+    : 'https://redesigned-lamp-r4xxq575wx62rv6-3000.app.github.dev';
+    
   async function compareNow() {
     const prompt = (document.getElementById('prompt').value || '').trim();
     if (!prompt) return;
