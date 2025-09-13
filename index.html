@@ -28,6 +28,45 @@
       border-radius:12px; padding:12px 16px; border:1px solid #111; background:#111; color:#fff;
       text-decoration:none; font-weight:600; cursor:pointer;
     }
+    footer{position:fixed; left:0; right:0; bottom:0; padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8}
+
+    /* Modal */
+    #ea-modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+      align-items:center; justify-content:center; padding:16px; z-index:1000}
+    #ea-modal.show{display:flex}
+    #ea-card{background:#fff; border-radius:16px; padding:22px; max-width:560px; width:100%;
+      box-shadow:0 10px 30px rgba(0,0,0,.12); position:relative}
+    #ea-close{position:absolute; top:10px; right:14px; background:transparent; border:0;
+      font-size:22px; cursor:pointer}
+    #ea-form{display:grid; gap:10px}
+    .field{padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; width:100%}
+    .notice{font-size:14px; margin-top:6px; display:none}
+    .notice.show{display:block}
+    .sr{position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden}
+
+    /* Compare cards */
+    .card{
+      border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fff;
+    }
+    .card h3{ margin:0 0 8px; font-size:16px; }
+    #results .body{ color:#111; }
+    @media (min-width: 860px){
+      #results{ grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <img src="/puppies-logo.png" alt="3heads.ai logo — three puppies in a box" class="logo" />
+    <h1>3heads.ai</h1>
+    <p class="tag">Because three heads are better than one 🐶🐶🐶</p>
+    <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
+    <p><strong>Public beta is coming soon.</strong></p>
+
+    <div class="cta">
+      <button class="btn" id="ea-open">Request early access</button>
+    </div>
+
     <!-- Prompt + results -->
     <section id="app" style="margin-top:28px;">
       <label for="prompt" class="sr">Your question</label>
@@ -49,43 +88,6 @@
         <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
       </div>
     </section>
-
-    footer{position:fixed; left:0; right:0; bottom:0; padding:10px 14px; text-align:center; font-size:12px; color:#94a3b8}
-
-    /* Modal */
-    #ea-modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
-      align-items:center; justify-content:center; padding:16px; z-index:1000}
-    #ea-modal.show{display:flex}
-    #ea-card{background:#fff; border-radius:16px; padding:22px; max-width:560px; width:100%;
-      box-shadow:0 10px 30px rgba(0,0,0,.12); position:relative}
-    #ea-close{position:absolute; top:10px; right:14px; background:transparent; border:0;
-      font-size:22px; cursor:pointer}
-    #ea-form{display:grid; gap:10px}
-    .field{padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; width:100%}
-    .notice{font-size:14px; margin-top:6px; display:none}
-    .notice.show{display:block}
-    .sr{position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden}
- .card{
-  border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fff;
-}
-.card h3{ margin:0 0 8px; font-size:16px; }
-#results .body{ color:#111; }
-@media (min-width: 860px){
-  #results{ grid-template-columns: repeat(3, 1fr); }
-}
- </style>
-</head>
-<body>
-  <main class="wrap">
-    <img src="/puppies-logo.png" alt="3heads.ai logo — three puppies in a box" class="logo" />
-    <h1>3heads.ai</h1>
-    <p class="tag">Because three heads are better than one 🐶🐶🐶</p>
-    <p>Ask once. See answers from multiple leading AIs side-by-side. When they disagree, we tell you — and why.</p>
-    <p><strong>Public beta is coming soon.</strong></p>
-
-    <div class="cta">
-      <button class="btn" id="ea-open">Request early access</button>
-    </div>
   </main>
 
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
@@ -151,7 +153,6 @@
         if(res.ok){
           success.classList.add('show');
           form.reset();
-          // Optional: auto-close modal after a moment
           setTimeout(closeModal, 1600);
         }else{
           errorBox.classList.add('show');
@@ -161,6 +162,7 @@
         errorBox.classList.add('show');
       }
     });
+
     // ---- Compare UI wiring ----
     const askBtn   = document.getElementById('ask-btn');
     const promptEl = document.getElementById('prompt');
@@ -205,10 +207,9 @@
     }
 
     askBtn?.addEventListener('click', compareNow);
-    // Submit with Ctrl/Cmd+Enter
     promptEl?.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') compareNow();
     });
-      </script>
+  </script>
 </body>
 </html>
