@@ -1,5 +1,6 @@
 // netlify/functions/compare.js
-// Node 18+ on Netlify has global fetch. Uses env keys: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY.
+// Node 18+ on Netlify has global fetch.
+// Env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY.
 
 exports.handler = async (event) => {
   try {
@@ -9,7 +10,6 @@ exports.handler = async (event) => {
 
     const { prompt = 'Say hello briefly.' } = JSON.parse(event.body || '{}');
 
-    // Kick off all three in parallel
     const [openai, claude, gemini] = await Promise.all([
       callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
       callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
@@ -23,7 +23,6 @@ exports.handler = async (event) => {
 };
 
 // ---------- helpers ----------
-
 const json = (statusCode, obj) => ({
   statusCode,
   headers: { 'Content-Type': 'application/json' },
@@ -75,65 +74,33 @@ async function callClaude(prompt) {
 
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  // Anthropics returns content as array of blocks; take first text block.
   return data.content?.[0]?.text ?? '';
 }
+
+// --- Gemini ---
+
 async function pickGeminiModel(apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
   const resp = await fetch(url);
   const data = await resp.json();
 
-  if (!data.models) {
-    console.error("Gemini ListModels failed:", data);
-    // Fall back to safest default
-    return "gemini-1.5-flash";
-  }
+  const names = new Set((data.models || []).map(m => m.name.replace(/^models\//, "")));
 
-  const names = new Set(data.models.map(m => m.name.replace(/^models\//, "")));
-
-  // Prefer highest quality available on your key
   if (names.has("gemini-1.5-pro")) return "gemini-1.5-pro";
   if (names.has("gemini-1.5-flash")) return "gemini-1.5-flash";
   if (names.has("gemini-1.5-flash-8b")) return "gemini-1.5-flash-8b";
 
-  // Last resort: log what *is* available so we can see it in Netlify logs
-  console.error("No expected Gemini models found. Available models:", [...names]);
-  return "gemini-1.5-flash-8b";
+  console.error("Gemini ListModels available:", [...names]);
+  // safe default
+  return "gemini-1.5-flash";
 }
 
 async function callGemini(prompt) {
-  const key = process.env.GEMINI_API_KEY; // you asked to use GEMINI_API_KEY
+  const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
 
-app.post("/gemini", async (req, res) => {
-  try {
-    const prompt = req.body?.prompt ?? "Say hello briefly.";
-    const model = await pickGeminiModel(process.env.GEMINI_API_KEY);
-    console.log("Using Gemini model:", model);  // check logs
-
-    const endpoint =
-      `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-    const r = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      })
-    });
-
-    const data = await r.json();
-    if (!r.ok) {
-      console.error("Gemini error:", data);
-      return res.status(502).json({ provider: "Gemini", error: data });
-    }
-
-    res.json({ provider: "Gemini", text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ provider: "Gemini", error: String(e) });
-  }
-});
+  const model = await pickGeminiModel(key);
+  const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 
   const r = await fetch(endpoint, {
     method: 'POST',
@@ -143,8 +110,8 @@ app.post("/gemini", async (req, res) => {
     })
   });
 
-  if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
+  if (!r.ok) throw new Error(JSON.stringify(data));
 
   const text = (data.candidates?.[0]?.content?.parts || [])
     .map(p => p.text || '')
