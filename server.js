@@ -100,7 +100,7 @@ async function pickGeminiModel(apiKey) {
 app.post("/gemini", async (req, res) => {
   try {
     const prompt = req.body?.prompt ?? "Say hello briefly.";
-    const model = "gemini-2.5-flash";
+    const model = "gemini-2.5-pro";
     const endpoint =
       `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
