@@ -13,7 +13,8 @@ exports.handler = async (event) => {
     const [openai, claude, gemini] = await Promise.all([
       callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
       callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
-      callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
+     // callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
+      callDeepSeek(prompt).catch(e => `DeepSeek error: ${msg(e)}`),
     ]);
 
     return json(200, { prompt, openai, claude, gemini });
@@ -110,6 +111,30 @@ async function callGemini(prompt) {
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     })
   });
+
+async function callDeepSeek(prompt) {
+  const key = process.env.DEEPSEEK_API_KEY;
+  const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+  if (!key) throw new Error("Missing DEEPSEEK_API_KEY");
+
+  const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${key}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 400
+    })
+  });
+
+  const data = await r.json();
+  if (!r.ok) throw new Error(JSON.stringify(data));
+  return data?.choices?.[0]?.message?.content ?? "";
+}
 
   const data = await r.json();
   if (!r.ok) throw new Error(JSON.stringify(data));
