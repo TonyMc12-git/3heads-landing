@@ -106,8 +106,7 @@ app.post("/gemini", async (req, res) => {
   try {
     const prompt = req.body?.prompt ?? "Say hello briefly.";
     const endpoint =
-    const endpoint =
-      'https://generativelanguage.googleapis.com/v1/models/' +
+          'https://generativelanguage.googleapis.com/v1/models/' +
       'gemini-1.5-pro:generateContent?key=' + `${process.env.GEMINI_API_KEY}`;
 
     const r = await fetch(endpoint, {
