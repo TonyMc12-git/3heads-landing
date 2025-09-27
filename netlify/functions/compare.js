@@ -1,156 +1,144 @@
 // netlify/functions/compare.js
-// Runtime: Node 18+ (global fetch)
-
-// Env vars:
-// - OPENAI_API_KEY
-// - ANTHROPIC_API_KEY
-// - DEEPSEEK_API_KEY          // <-- New (ensure it's set in Netlify)
-// - GEMINI_API_KEY            // kept for later; code is commented
-
-function json(status, body) {
-  return {
-    statusCode: status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "access-control-allow-origin": "*",
-      "access-control-allow-headers": "content-type, authorization",
-      "access-control-allow-methods": "POST, OPTIONS",
-    },
-    body: JSON.stringify(body),
-  };
-}
-
-// Always return a plain string
-function msg(e) {
-  try {
-    if (!e) return "Unknown error";
-    if (typeof e === "string") return e;
-    if (e.message) return e.message;
-    if (e.response && e.response.status) return `HTTP ${e.response.status}`;
-    return JSON.stringify(e);
-  } catch {
-    return "Unknown error";
-  }
-}
+// Node 18+ on Netlify has global fetch.
+// Env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY.
 
 exports.handler = async (event) => {
   try {
-    if (event.httpMethod === "OPTIONS") return json(200, { ok: true });
-    if (event.httpMethod !== "POST") return json(405, { error: "Method Not Allowed" });
+    if (event.httpMethod !== 'POST') {
+      return json(405, { error: 'Method Not Allowed' });
+    }
 
-    const { prompt = "Say hello briefly." } = JSON.parse(event.body || "{}");
+    const { prompt = 'Say hello briefly.' } = JSON.parse(event.body || '{}');
 
-    const [openai, claude, deepseek /* , gemini */] = await Promise.all([
-      callOpenAI(prompt).catch((e) => `OpenAI error: ${msg(e)}`),
-      callClaude(prompt).catch((e) => `Claude error: ${msg(e)}`),
-      callDeepSeek(prompt).catch((e) => `DeepSeek error: ${msg(e)}`),
-      // callGemini(prompt).catch((e) => `Gemini error: ${msg(e)}`),
+    const [openai, claude, deepseek, gemini] = await Promise.all([
+      callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
+      callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
+      callDeepSeek(prompt).catch(e => `DeepSeek error: ${msg(e)}`),
+      callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
     ]);
 
-    return json(200, { prompt, openai, claude, deepseek /* , gemini */ });
+    return json(200, { prompt, openai, claude, deepseek, gemini });
   } catch (err) {
     return json(500, { error: msg(err) });
   }
 };
 
-/* =======================
- * Providers
- * ======================= */
+// ---------- helpers ----------
+const json = (statusCode, obj) => ({
+  statusCode,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(obj),
+});
 
+const msg = (e) => (e && e.message) ? e.message : String(e);
+
+// ---------- providers ----------
+
+// --- OpenAI ---
 async function callOpenAI(prompt) {
-  const apiKey = (process.env.OPENAI_API_KEY || "").trim();
-  if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('Missing OPENAI_API_KEY');
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
     headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: "gpt-5-mini", // or "gpt-5"
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-    }),
+      model: 'gpt-4o-mini', // original model id you had
+      messages: [{ role: 'user', content: prompt }]
+    })
   });
 
-  if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content ?? "";
-  return text.trim();
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  return data.choices?.[0]?.message?.content ?? '';
 }
 
+// --- Anthropic ---
 async function callClaude(prompt) {
-  const apiKey = (process.env.ANTHROPIC_API_KEY || "").trim();
-  if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY");
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('Missing ANTHROPIC_API_KEY');
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
     headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: "claude-3-7-sonnet-2025-05-28",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-    }),
+      model: 'claude-3-haiku-20240307', // original model id you had
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }]
+    })
   });
 
-  if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
-  const data = await res.json();
-  const text = (data.content || [])
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("")
-    .trim();
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  return data.content?.[0]?.text ?? '';
+}
+
+// --- DeepSeek (new) ---
+async function callDeepSeek(prompt) {
+  const key = process.env.DEEPSEEK_API_KEY;
+  if (!key) throw new Error('Missing DEEPSEEK_API_KEY');
+
+  const r = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat', // general chat model; switch to 'deepseek-reasoner' if you want CoT style
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  return data.choices?.[0]?.message?.content?.trim() ?? '';
+}
+
+// --- Gemini (kept exactly as before) ---
+async function pickGeminiModel(apiKey) {
+  const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
+  const resp = await fetch(url);
+  const data = await resp.json();
+
+  const names = new Set((data.models || []).map(m => m.name.replace(/^models\//, "")));
+
+  if (names.has("gemini-1.5-pro")) return "gemini-1.5-pro";
+  if (names.has("gemini-1.5-flash")) return "gemini-1.5-flash";
+  if (names.has("gemini-1.5-flash-8b")) return "gemini-1.5-flash-8b";
+
+  console.error("Gemini ListModels available:", [...names]);
+  // safe default
+  return "gemini-1.5-flash";
+}
+
+async function callGemini(prompt) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('Missing GEMINI_API_KEY');
+
+  const model = await pickGeminiModel(key);
+  const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    })
+  });
+
+  const data = await r.json();
+  if (!r.ok) throw new Error(JSON.stringify(data));
+
+  const text = (data.candidates?.[0]?.content?.parts || [])
+    .map(p => p.text || '')
+    .join('');
   return text;
 }
-
-async function callDeepSeek(prompt) {
-  const apiKey = (process.env.DEEPSEEK_API_KEY || "").trim(); // <-- fixed
-  if (!apiKey) throw new Error("Missing DEEPSEEK_API_KEY");
-
-  const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "deepseek-chat", // or "deepseek-reasoner"
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      // max_tokens: 1024,
-      // stream: false,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}`);
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content ?? "";
-  return text.trim();
-}
-
-/* Gemini (kept for later) */
-// async function callGemini(prompt) {
-//   const apiKey = (process.env.GEMINI_API_KEY || "").trim();
-//   if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
-//
-//   const res = await fetch(
-//     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-//     {
-//       method: "POST",
-//       headers: { "content-type": "application/json" },
-//       body: JSON.stringify({
-//         contents: [{ role: "user", parts: [{ text: prompt }] }],
-//       }),
-//     }
-//   );
-//
-//   if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
-//   const data = await res.json();
-//   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
-//   return text.trim();
-// }

@@ -126,25 +126,53 @@ app.post("/gemini", async (req, res) => {
   }
 });
 
+// DeepSeek (new)
+app.post("/deepseek", async (req, res) => {
+  try {
+    const prompt = req.body?.prompt ?? "Say hello briefly.";
+    const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat", // switch to "deepseek-reasoner" if desired
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+
+    const data = await r.json();
+    const answer = data.choices?.[0]?.message?.content?.trim() ?? "";
+    res.json({ answer, raw: data });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // Compare (local dev convenience)
 app.post("/compare", async (req, res) => {
   const prompt = req.body?.prompt ?? "Say hello briefly.";
   const base = `http://localhost:${process.env.PORT || 3000}`;
 
   try {
-    const [o, c, g] = await Promise.all([
-      fetch(`${base}/openai`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
-      fetch(`${base}/claude`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
-      fetch(`${base}/gemini`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
+    const [o, c, g, d] = await Promise.all([
+      fetch(`${base}/openai`,  { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
+      fetch(`${base}/claude`,  { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
+      fetch(`${base}/gemini`,  { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
+      fetch(`${base}/deepseek`,{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
     ]);
 
-    const [oj, cj, gj] = await Promise.all([o.json(), c.json(), g.json()]);
+    const [oj, cj, gj, dj] = await Promise.all([o.json(), c.json(), g.json(), d.json()]);
     res.json({
       prompt,
-      openai: oj.answer ?? oj.error,
-      claude: cj.answer ?? cj.error,
-      gemini: gj.answer ?? gj.error,
-      raw: { openai: oj, claude: cj, gemini: gj }
+      openai:   oj.answer ?? oj.error,
+      claude:   cj.answer ?? cj.error,
+      gemini:   gj.answer ?? gj.error,
+      deepseek: dj.answer ?? dj.error,
+      raw: { openai: oj, claude: cj, gemini: gj, deepseek: dj }
     });
   } catch (err) {
     res.status(500).json({ error: String(err) });
