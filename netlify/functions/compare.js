@@ -83,7 +83,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY; // you asked to use GEMINI_API_KEY
   if (!key) throw new Error('Missing GEMINI_API_KEY');
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
 
   const r = await fetch(endpoint, {
     method: 'POST',
