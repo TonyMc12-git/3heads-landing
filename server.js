@@ -1,5 +1,5 @@
 import express from "express";
-import fetch from "node-fetch";
+import fetch from "node-fetch"; // OK (Node18 has global fetch, but keeping this is fine)
 import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
@@ -12,6 +12,7 @@ const __dirname  = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 // Serve the front-end from the same server
 app.use(express.static(__dirname));
 
@@ -23,13 +24,10 @@ app.get("/app", (req, res) => {
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
-/**
- * POST /openai
- * body: { prompt: string }
- */
+/* -------------------- Providers -------------------- */
+
+// OpenAI
 app.post("/openai", async (req, res) => {
   try {
     const prompt = req.body?.prompt ?? "Say hello briefly.";
@@ -45,10 +43,7 @@ app.post("/openai", async (req, res) => {
       })
     });
 
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: text });
-    }
+    if (!r.ok) return res.status(r.status).json({ error: await r.text() });
 
     const data = await r.json();
     const answer = data.choices?.[0]?.message?.content ?? "";
@@ -58,10 +53,7 @@ app.post("/openai", async (req, res) => {
   }
 });
 
-/**
- * POST /claude
- * body: { prompt: string }
- */
+// Claude
 app.post("/claude", async (req, res) => {
   try {
     const prompt = req.body?.prompt ?? "Say hello briefly.";
@@ -73,65 +65,43 @@ app.post("/claude", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",   // <-- use Haiku
+        model: "claude-3-haiku-20240307",
         max_tokens: 300,
-        messages: [
-          {
-            role: "user",
-            content: [{ type: "text", text: prompt }]  // correct schema
-          }
-        ]
+        messages: [{ role: "user", content: [{ type: "text", text: prompt }] }]
       })
     });
 
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: text });
-    }
+    if (!r.ok) return res.status(r.status).json({ error: await r.text() });
 
     const data = await r.json();
-    // Claude responses: content is an array of blocks; first is usually {type:"text", text:"..."}
     const answer = data.content?.[0]?.text ?? "";
     res.json({ answer, raw: data });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
 });
+
+// Gemini helpers
 async function pickGeminiModel(apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
   const resp = await fetch(url);
   const data = await resp.json();
+  const names = new Set((data.models || []).map(m => m.name.replace(/^models\//, "")));
 
-  if (!data.models) {
-    console.error("Gemini ListModels failed:", data);
-    // Fall back to safest default
-    return "gemini-1.5-flash";
-  }
-
-  const names = new Set(data.models.map(m => m.name.replace(/^models\//, "")));
-
-  // Prefer highest quality available on your key
-  if (names.has("gemini-1.5-pro")) return "gemini-1.5-pro";
+  if (names.has("gemini-1.5-pro"))  return "gemini-1.5-pro";
   if (names.has("gemini-1.5-flash")) return "gemini-1.5-flash";
   if (names.has("gemini-1.5-flash-8b")) return "gemini-1.5-flash-8b";
 
-  // Last resort: log what *is* available so we can see it in Netlify logs
-  console.error("No expected Gemini models found. Available models:", [...names]);
-  return "gemini-1.5-flash-8b";
+  console.error("Gemini ListModels available:", [...names]);
+  return "gemini-1.5-flash"; // safe default
 }
 
-/**
- * POST /gemini
- * body: { prompt: string }
- */
-app.post("/gemini", async (req, res) => {
-  try {
-    const prompt = req.body?.prompt ?? "Say hello briefly.";
+// Gemini
 app.post("/gemini", async (req, res) => {
   try {
     const prompt = req.body?.prompt ?? "Say hello briefly.";
     const model = await pickGeminiModel(process.env.GEMINI_API_KEY);
-    console.log("Using Gemini model:", model);  // check logs
+    console.log("Using Gemini model:", model);
 
     const endpoint =
       `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
@@ -147,64 +117,27 @@ app.post("/gemini", async (req, res) => {
     const data = await r.json();
     if (!r.ok) {
       console.error("Gemini error:", data);
-      return res.status(502).json({ provider: "Gemini", error: data });
+      return res.status(502).json({ error: data });
     }
 
-    res.json({ provider: "Gemini", text: data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ provider: "Gemini", error: String(e) });
-  }
-});
-
-    const r = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-            role: "user"
-          }
-        ]
-      })
-    });
-
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: text });
-    }
-
-    const data = await r.json();
     const answer =
-      data.candidates?.[0]?.content?.parts?.map(p => p.text).join("") ?? "";
+      (data.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
     res.json({ answer, raw: data });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
 });
 
+// Compare (local dev convenience)
 app.post("/compare", async (req, res) => {
   const prompt = req.body?.prompt ?? "Say hello briefly.";
   const base = `http://localhost:${process.env.PORT || 3000}`;
 
   try {
     const [o, c, g] = await Promise.all([
-      fetch(`${base}/openai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
-      }),
-      fetch(`${base}/claude`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
-      }),
-      fetch(`${base}/gemini`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
-      })
+      fetch(`${base}/openai`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
+      fetch(`${base}/claude`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
+      fetch(`${base}/gemini`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) }),
     ]);
 
     const [oj, cj, gj] = await Promise.all([o.json(), c.json(), g.json()]);
@@ -220,6 +153,6 @@ app.post("/compare", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
-});
+/* -------------------- Start server (single listen) -------------------- */
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
