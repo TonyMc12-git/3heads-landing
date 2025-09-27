@@ -80,7 +80,12 @@
         <div id="results" class="cards" aria-live="polite">
           <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
           <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
+
+          <!-- Swapped Gemini -> DeepSeek (keep Gemini markup commented for later) -->
+          <article class="card" id="deepseek-card"><h3>DeepSeek</h3><div class="body"></div></article>
+          <!--
           <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
+          -->
         </div>
       </section>
     </div>
@@ -106,7 +111,8 @@
 
       askBtn.disabled = true;
       statusEl.textContent = 'Fetching...';
-      setCard('openai-card',''); setCard('claude-card',''); setCard('gemini-card','');
+      setCard('openai-card',''); setCard('claude-card',''); setCard('deepseek-card',''); // reset DeepSeek
+      // setCard('gemini-card',''); // keep for later
 
       try {
         const res = await fetch(COMPARE_URL, {
@@ -121,9 +127,10 @@
         }
 
         const data = await res.json();
-        setCard('openai-card', data.openai || '—');
-        setCard('claude-card', data.claude || '—');
-        setCard('gemini-card', data.gemini || '—');
+        setCard('openai-card',   data.openai   || '—');
+        setCard('claude-card',   data.claude   || '—');
+        setCard('deepseek-card', data.deepseek || '—');   // show DeepSeek
+        // setCard('gemini-card', data.gemini || '—');    // keep for later
         statusEl.textContent = 'Done.';
       } catch (err) {
         statusEl.textContent = 'Error. Please try again.';

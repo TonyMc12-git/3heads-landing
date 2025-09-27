@@ -10,14 +10,16 @@ exports.handler = async (event) => {
 
     const { prompt = 'Say hello briefly.' } = JSON.parse(event.body || '{}');
 
-    const [openai, claude, deepseek, gemini] = await Promise.all([
+    // Call OpenAI, Claude, DeepSeek; leave Gemini out of the batch
+    const [openai, claude, deepseek] = await Promise.all([
       callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
       callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
       callDeepSeek(prompt).catch(e => `DeepSeek error: ${msg(e)}`),
-      callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
+      // callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`), // kept for later
     ]);
 
-    return json(200, { prompt, openai, claude, deepseek, gemini });
+    // Return deepseek (no gemini field)
+    return json(200, { prompt, openai, claude, deepseek });
   } catch (err) {
     return json(500, { error: msg(err) });
   }
@@ -92,7 +94,7 @@ async function callDeepSeek(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'deepseek-chat', // general chat model; switch to 'deepseek-reasoner' if you want CoT style
+      model: 'deepseek-chat', // switch to 'deepseek-reasoner' if you want CoT style
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -102,7 +104,7 @@ async function callDeepSeek(prompt) {
   return data.choices?.[0]?.message?.content?.trim() ?? '';
 }
 
-// --- Gemini (kept exactly as before) ---
+// --- Gemini (kept exactly as before; not used in the batch above) ---
 async function pickGeminiModel(apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
   const resp = await fetch(url);
