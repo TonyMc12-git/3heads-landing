@@ -173,7 +173,7 @@
             .catch(() => setCard('alt-card', 'DeepSeek error'));
         } else {
           // Use Gemini result from compare response
-          setCard('alt-card', (cdata && cdata.gemini) ? cdata.gemini : '—');
+            setCard('alt-card', cdata.gemini || '—');
         }
 
         statusEl.textContent = 'Done.';
