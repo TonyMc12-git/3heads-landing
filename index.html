@@ -77,6 +77,9 @@
           <button class="btn" id="toggle-btn" style="background:#fff;color:#111;border-color:#111">
             Diversify my puppies
           </button>
+          <span id="toggle-explain" class="status" aria-live="polite">
+            Swaps one of the 3 US-centric AIs out for a China-centric AI to give a different, non-Western perspective
+          </span>
           <span id="status" class="status"></span>
         </div>
 
@@ -99,6 +102,7 @@
     const toggleBtn = document.getElementById('toggle-btn');
     const promptEl  = document.getElementById('prompt');
     const statusEl  = document.getElementById('status');
+    const explainEl = document.getElementById('toggle-explain');
 
     let useDeepSeek = false;
 
@@ -116,6 +120,11 @@
       useDeepSeek = !useDeepSeek;
       setAltLabel(useDeepSeek ? 'DeepSeek' : 'Gemini');
       toggleBtn.textContent = useDeepSeek ? 'Un-diversify my puppies' : 'Diversify my puppies';
+      if (explainEl) {
+        explainEl.textContent = useDeepSeek
+          ? 'Swap back to 3 US-centric AIs'
+          : 'Swaps one of the 3 US-centric AIs out for a China-centric AI to give a different, non-Western perspective';
+      }
       statusEl.textContent = 'swapping one AI';
       setTimeout(() => { if (statusEl.textContent === 'swapping one AI') statusEl.textContent = ''; }, 1200);
     }
