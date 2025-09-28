@@ -95,7 +95,10 @@ async function callDeepSeek(prompt) {
     },
     body: JSON.stringify({
       model: 'deepseek-chat', // switch to 'deepseek-reasoner' if you want CoT style
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: prompt }
+      ],
+      max_tokens: 200,
+      temperature: 0.2
     })
   });
 
