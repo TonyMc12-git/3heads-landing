@@ -75,7 +75,7 @@
 
           <button class="btn" id="ask-btn">Fetch!</button>
           <button class="btn" id="toggle-btn" style="background:#fff;color:#111;border-color:#111">
-            Un-diversify my puppies
+            Diversify my puppies
           </button>
           <span id="status" class="status"></span>
         </div>
@@ -83,7 +83,7 @@
         <div id="results" class="cards" aria-live="polite">
           <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
           <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
-          <article class="card" id="alt-card"><h3 id="alt-label">DeepSeek</h3><div class="body"></div></article>
+          <article class="card" id="alt-card"><h3 id="alt-label">Gemini</h3><div class="body"></div></article>
         </div>
       </section>
     </div>
@@ -100,7 +100,7 @@
     const promptEl  = document.getElementById('prompt');
     const statusEl  = document.getElementById('status');
 
-    let useDeepSeek = true;
+    let useDeepSeek = false;
 
     const setCard = (id, text) => {
       const el = document.querySelector(`#${id} .body`);
