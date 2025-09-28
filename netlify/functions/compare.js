@@ -14,7 +14,13 @@ exports.handler = async (event) => {
     const [openai, claude, deepseek] = await Promise.all([
       callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
       callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
-      callDeepSeek(prompt).catch(e => `DeepSeek error: ${msg(e)}`),
+
+      // If DeepSeek takes too long, return a friendly note instead of timing out the whole function
+      withDeadline(
+        callDeepSeek(prompt).catch(e => `DeepSeek error: ${msg(e)}`),
+        22000, // keep a buffer under Netlify's 26s hard limit
+        'DeepSeek timed out (took too long)'
+      ),
       // callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`), // kept for later
     ]);
 
@@ -33,6 +39,13 @@ const json = (statusCode, obj) => ({
 });
 
 const msg = (e) => (e && e.message) ? e.message : String(e);
+
+// Deadline helper: resolve with a fallback string if a promise takes too long
+const withDeadline = (promise, ms, onTimeoutText) =>
+  Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(onTimeoutText), ms)),
+  ]);
 
 // ---------- providers ----------
 
@@ -95,8 +108,7 @@ async function callDeepSeek(prompt) {
     },
     body: JSON.stringify({
       model: 'deepseek-chat', // switch to 'deepseek-reasoner' if you want CoT style
-      messages: [{ role: 'user', content: prompt }
-      ],
+      messages: [{ role: 'user', content: prompt }],
       max_tokens: 200,
       temperature: 0.2
     })
