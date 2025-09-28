@@ -1,6 +1,6 @@
 // netlify/functions/compare.js
 // Node 18+ on Netlify has global fetch.
-// Env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY.
+// Env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY
 
 exports.handler = async (event) => {
   try {
@@ -10,16 +10,14 @@ exports.handler = async (event) => {
 
     const { prompt = 'Say hello briefly.' } = JSON.parse(event.body || '{}');
 
-    // Call OpenAI, Claude, DeepSeek; leave Gemini out of the batch
-    const [openai, claude, deepseek] = await Promise.all([
+    // Call OpenAI, Claude (Gemini kept for later)
+    const [openai, claude /* , gemini */] = await Promise.all([
       callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
       callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
-      deepSeekWithDeadline(prompt), // <-- deadline-guarded DeepSeek
-      // callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`), // kept for later
+      // callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
     ]);
 
-    // Return deepseek (no gemini field)
-    return json(200, { prompt, openai, claude, deepseek });
+    return json(200, { prompt, openai, claude /* , gemini */ });
   } catch (err) {
     return json(500, { error: msg(err) });
   }
@@ -82,59 +80,7 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- DeepSeek (deadline-guarded) ---
-async function deepSeekWithDeadline(prompt) {
-  // 22s budget so the whole function can finish under Netlify's 26s cap
-  const DEADLINE_MS = 22000;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEADLINE_MS);
-
-  // Kick off the fetch
-  const fetchPromise = (async () => {
-    try {
-      const key = process.env.DEEPSEEK_API_KEY;
-      if (!key) throw new Error('Missing DEEPSEEK_API_KEY');
-
-      const r = await fetch('https://api.deepseek.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 200,
-          temperature: 0.2
-        }),
-        signal: controller.signal
-      });
-
-      if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
-      return data.choices?.[0]?.message?.content?.trim() ?? '';
-    } catch (e) {
-      // If we aborted, map to a friendly message; otherwise surface the error text
-      if (e && (e.name === 'AbortError' || String(e).includes('aborted'))) {
-        return 'DeepSeek timed out (took too long)';
-      }
-      return `DeepSeek error: ${msg(e)}`;
-    } finally {
-      clearTimeout(timeout);
-    }
-  })();
-
-  // Race fetch vs. deadline-resolver so we don't keep the event loop alive
-  const deadlinePromise = new Promise(resolve =>
-    setTimeout(() => resolve('DeepSeek timed out (took too long)'), DEADLINE_MS + 50)
-  );
-
-  // Whichever resolves first wins; if deadline wins, the fetch is already aborted above
-  return Promise.race([fetchPromise, deadlinePromise]);
-}
-
-// --- Gemini (kept exactly as before; not used in the batch above) ---
+// --- Gemini (kept for future toggle) ---
 async function pickGeminiModel(apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
   const resp = await fetch(url);

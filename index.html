@@ -81,7 +81,7 @@
           <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
           <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
 
-          <!-- Swapped Gemini -> DeepSeek (keep Gemini markup commented for later) -->
+          <!-- DeepSeek active; Gemini kept for later -->
           <article class="card" id="deepseek-card"><h3>DeepSeek</h3><div class="body"></div></article>
           <!--
           <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
@@ -94,7 +94,8 @@
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
   <script>
-    const COMPARE_URL = '/.netlify/functions/compare';
+    const COMPARE_URL  = '/.netlify/functions/compare';  // OpenAI + Claude
+    const DEEPSEEK_URL = '/.netlify/functions/deepseek'; // DeepSeek (separate fn)
 
     const askBtn   = document.getElementById('ask-btn');
     const promptEl = document.getElementById('prompt');
@@ -111,26 +112,38 @@
 
       askBtn.disabled = true;
       statusEl.textContent = 'Fetching...';
-      setCard('openai-card',''); setCard('claude-card',''); setCard('deepseek-card',''); // reset DeepSeek
+      setCard('openai-card',''); setCard('claude-card',''); setCard('deepseek-card','');
       // setCard('gemini-card',''); // keep for later
 
       try {
-        const res = await fetch(COMPARE_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        // Kick off both requests immediately
+        const compareP  = fetch(COMPARE_URL,  {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt })
         });
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `HTTP ${res.status}`);
-        }
+        const deepseekP = fetch(DEEPSEEK_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
 
-        const data = await res.json();
-        setCard('openai-card',   data.openai   || '—');
-        setCard('claude-card',   data.claude   || '—');
-        setCard('deepseek-card', data.deepseek || '—');   // show DeepSeek
-        // setCard('gemini-card', data.gemini || '—');    // keep for later
+        // Resolve compare (fast path)
+        const cr = await compareP;
+        if (!cr.ok) throw new Error(await cr.text() || `HTTP ${cr.status}`);
+        const cdata = await cr.json();
+
+        setCard('openai-card', cdata.openai || '—');
+        setCard('claude-card', cdata.claude || '—');
+
+        // Fill DeepSeek when ready; don't block the UI
+        deepseekP
+          .then(r => r.ok ? r.json() : r.text().then(t => ({ error: t || `HTTP ${r.status}` })))
+          .then(d => {
+            const text = (d && (d.deepseek || d.error)) || '—';
+            setCard('deepseek-card', text);
+          })
+          .catch(() => setCard('deepseek-card', 'DeepSeek error'));
+
         statusEl.textContent = 'Done.';
       } catch (err) {
         statusEl.textContent = 'Error. Please try again.';
