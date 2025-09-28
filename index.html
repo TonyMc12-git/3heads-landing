@@ -135,8 +135,14 @@
         // If we want Gemini, ask compare() to include it; otherwise keep it lean
         const compareBody = useDeepSeek ? { prompt } : { prompt, withGemini: true };
 
-        const compareP = fetch(COMPARE_URL, {
+        // Force a fresh call when Gemini is requested (bust any caches)
+        const compareUrl = useDeepSeek
+          ? COMPARE_URL
+          : `${COMPARE_URL}?ts=${Date.now()}`;
+
+        const compareP = fetch(compareUrl, {
           method: 'POST',
+          cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(compareBody)
         });
@@ -145,6 +151,7 @@
         const deepseekP = useDeepSeek
           ? fetch(DEEPSEEK_URL, {
               method: 'POST',
+              cache: 'no-store',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ prompt })
             })
@@ -166,7 +173,7 @@
             .catch(() => setCard('alt-card', 'DeepSeek error'));
         } else {
           // Use Gemini result from compare response
-          setCard('alt-card', cdata.gemini || '—');
+          setCard('alt-card', (cdata && cdata.gemini) ? cdata.gemini : '—');
         }
 
         statusEl.textContent = 'Done.';
