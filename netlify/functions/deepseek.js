@@ -34,7 +34,7 @@ async function callDeepSeek(prompt) {
     body: JSON.stringify({
       model: 'deepseek-chat',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200,
+      max_tokens: 1024,
       temperature: 0.2
     })
   });
