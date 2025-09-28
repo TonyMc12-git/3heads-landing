@@ -74,6 +74,9 @@
             placeholder="Type your question (e.g., “What is the capital of Bolivia?”)"></textarea>
 
           <button class="btn" id="ask-btn">Fetch!</button>
+          <button class="btn" id="toggle-btn" style="background:#fff;color:#111;border-color:#111">
+            Un-diversify my puppies
+          </button>
           <span id="status" class="status"></span>
         </div>
 
@@ -81,11 +84,8 @@
           <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
           <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
 
-          <!-- DeepSeek active; Gemini kept for later -->
-          <article class="card" id="deepseek-card"><h3>DeepSeek</h3><div class="body"></div></article>
-          <!--
-          <article class="card" id="gemini-card"><h3>Gemini</h3><div class="body"></div></article>
-          -->
+          <!-- Single "alt" card whose label + content switch between DeepSeek and Gemini -->
+          <article class="card" id="alt-card"><h3 id="alt-label">DeepSeek</h3><div class="body"></div></article>
         </div>
       </section>
     </div>
@@ -94,40 +94,63 @@
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
   <script>
-    const COMPARE_URL  = '/.netlify/functions/compare';  // OpenAI + Claude
-    const DEEPSEEK_URL = '/.netlify/functions/deepseek'; // DeepSeek (separate fn)
+    const COMPARE_URL  = '/.netlify/functions/compare';   // OpenAI + Claude (+ optional Gemini)
+    const DEEPSEEK_URL = '/.netlify/functions/deepseek';  // DeepSeek (separate fn)
 
-    const askBtn   = document.getElementById('ask-btn');
-    const promptEl = document.getElementById('prompt');
-    const statusEl = document.getElementById('status');
+    const askBtn    = document.getElementById('ask-btn');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const promptEl  = document.getElementById('prompt');
+    const statusEl  = document.getElementById('status');
+
+    // Default mode: diversified (DeepSeek active)
+    let useDeepSeek = true;
 
     const setCard = (id, text) => {
       const el = document.querySelector(`#${id} .body`);
       if (el) el.textContent = text || '';
     };
 
+    const setAltLabel = (name) => {
+      const h = document.getElementById('alt-label');
+      if (h) h.textContent = name;
+    };
+
+    function flipMode() {
+      useDeepSeek = !useDeepSeek;
+      setAltLabel(useDeepSeek ? 'DeepSeek' : 'Gemini');
+      toggleBtn.textContent = useDeepSeek ? 'Un-diversify my puppies' : 'Diversify my puppies';
+      statusEl.textContent = 'swapping one AI';
+      setTimeout(() => { if (statusEl.textContent === 'swapping one AI') statusEl.textContent = ''; }, 1200);
+    }
+
     async function compareNow() {
       const prompt = (promptEl.value || '').trim();
       if (!prompt) { promptEl.focus(); return; }
 
-      askBtn.disabled = true;
+      askBtn.disabled = true; toggleBtn.disabled = true;
       statusEl.textContent = 'Fetching...';
-      setCard('openai-card',''); setCard('claude-card',''); setCard('deepseek-card','');
-      // setCard('gemini-card',''); // keep for later
+      setCard('openai-card',''); setCard('claude-card',''); setCard('alt-card','');
 
       try {
-        // Kick off both requests immediately
-        const compareP  = fetch(COMPARE_URL,  {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
+        // If we want Gemini, ask compare() to include it; otherwise keep it lean
+        const compareBody = useDeepSeek ? { prompt } : { prompt, withGemini: true };
+
+        const compareP = fetch(COMPARE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(compareBody)
         });
 
-        const deepseekP = fetch(DEEPSEEK_URL, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
-        });
+        // Kick off DeepSeek only if we're in diversified mode
+        const deepseekP = useDeepSeek
+          ? fetch(DEEPSEEK_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt })
+            })
+          : null;
 
-        // Resolve compare (fast path)
+        // Resolve compare (OpenAI + Claude, and Gemini if requested)
         const cr = await compareP;
         if (!cr.ok) throw new Error(await cr.text() || `HTTP ${cr.status}`);
         const cdata = await cr.json();
@@ -135,24 +158,27 @@
         setCard('openai-card', cdata.openai || '—');
         setCard('claude-card', cdata.claude || '—');
 
-        // Fill DeepSeek when ready; don't block the UI
-        deepseekP
-          .then(r => r.ok ? r.json() : r.text().then(t => ({ error: t || `HTTP ${r.status}` })))
-          .then(d => {
-            const text = (d && (d.deepseek || d.error)) || '—';
-            setCard('deepseek-card', text);
-          })
-          .catch(() => setCard('deepseek-card', 'DeepSeek error'));
+        if (useDeepSeek) {
+          // Fill DeepSeek when ready; don't block the UI
+          deepseekP
+            .then(r => r.ok ? r.json() : r.text().then(t => ({ error: t || `HTTP ${r.status}` })))
+            .then(d => setCard('alt-card', (d && (d.deepseek || d.error)) || '—'))
+            .catch(() => setCard('alt-card', 'DeepSeek error'));
+        } else {
+          // Use Gemini result from compare response
+          setCard('alt-card', cdata.gemini || '—');
+        }
 
         statusEl.textContent = 'Done.';
       } catch (err) {
         statusEl.textContent = 'Error. Please try again.';
         console.error(err);
       } finally {
-        askBtn.disabled = false;
+        askBtn.disabled = false; toggleBtn.disabled = false;
       }
     }
 
+    toggleBtn.addEventListener('click', flipMode);
     askBtn.addEventListener('click', compareNow);
     promptEl.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') compareNow();

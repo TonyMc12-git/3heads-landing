@@ -8,16 +8,18 @@ exports.handler = async (event) => {
       return json(405, { error: 'Method Not Allowed' });
     }
 
-    const { prompt = 'Say hello briefly.' } = JSON.parse(event.body || '{}');
+    const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
 
-    // Call OpenAI, Claude (Gemini kept for later)
-    const [openai, claude /* , gemini */] = await Promise.all([
-      callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`),
-      callClaude(prompt).catch(e => `Claude error: ${msg(e)}`),
-      // callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`),
-    ]);
+    const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
+    const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
+    const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
 
-    return json(200, { prompt, openai, claude /* , gemini */ });
+    const [openai, claude, gemini] = await Promise.all([openaiP, claudeP, geminiP]);
+
+    const payload = { prompt, openai, claude };
+    if (withGemini) payload.gemini = gemini;
+
+    return json(200, payload);
   } catch (err) {
     return json(500, { error: msg(err) });
   }
@@ -80,7 +82,7 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- Gemini (kept for future toggle) ---
+// --- Gemini (kept for toggle) ---
 async function pickGeminiModel(apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
   const resp = await fetch(url);
