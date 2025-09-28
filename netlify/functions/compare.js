@@ -48,7 +48,7 @@ async function callOpenAI(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini', // original model id you had
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -71,7 +71,7 @@ async function callClaude(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'claude-3-haiku-20240307', // original model id you had
+      model: 'claude-3-haiku-20240307',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -82,38 +82,23 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- Gemini (kept for toggle) ---
-async function pickGeminiModel(apiKey) {
-  const url = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
-  const resp = await fetch(url);
-  const data = await resp.json();
-
-  const names = new Set((data.models || []).map(m => m.name.replace(/^models\//, "")));
-
-  if (names.has("gemini-2.5-pro")) return "gemini-2.5-pro";
-  if (names.has("gemini-2.5-flash")) return "gemini-2.5-flash";
-  if (names.has("gemini-2.5-flash-8b")) return "gemini-2.5-flash-8b";
-
-  console.error("Gemini ListModels available:", [...names]);
-  // safe default
-  return "gemini-2.5-flash";
-}
-
+// --- Gemini (hardcoded to 2.5-flash) ---
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
 
-  const model = await pickGeminiModel(key);
+  const model = "gemini-2.5-flash";
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 
   const r = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      // keep it concise like DeepSeek
       contents: [{
         role: 'user',
-        parts: [{ text: `Answer concisely in about 120–200 words. Do not over-explain unless asked.\n\n${prompt}` }]
+        parts: [{
+          text: `Answer concisely in about 120–200 words. Do not over-explain unless asked.\n\n${prompt}`
+        }]
       }],
       generationConfig: {
         maxOutputTokens: 320,   // ~200 words
@@ -129,5 +114,5 @@ async function callGemini(prompt) {
   const text = (data.candidates?.[0]?.content?.parts || [])
     .map(p => p.text || '')
     .join('');
-  return text;
+  return text.trim();
 }
