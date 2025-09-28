@@ -1,9 +1,11 @@
 [build]
   publish = "."
-  command = ""  # no build step
+  command = "" # no build step
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
+  timeout = 26
 
 # Optional: SPA-style fallback
 [[redirects]]
