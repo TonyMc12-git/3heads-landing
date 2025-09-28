@@ -82,37 +82,56 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- Gemini (hardcoded to 2.5-flash) ---
+// --- Gemini (hardcoded to 2.5-flash with 20s deadline) ---
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
 
-  const model = "gemini-2.5-flash";
+  const model = 'gemini-2.5-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 
-  const r = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [{
-          text: `Answer concisely in about 120–200 words. Do not over-explain unless asked.\n\n${prompt}`
-        }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 320,   // ~200 words
-        temperature: 0.2,
-        topP: 0.9
-      }
-    })
-  });
+  // Deadline so we don't hit Netlify's hard 26s cap
+  const DEADLINE_MS = 20000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEADLINE_MS);
 
-  const data = await r.json();
-  if (!r.ok) throw new Error(JSON.stringify(data));
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Answer concisely in about 120–200 words. Do not over-explain unless asked.\n\n${prompt}`
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 320,   // ~200 words
+          temperature: 0.2,
+          topP: 0.9
+        }
+      }),
+      signal: controller.signal
+    });
 
-  const text = (data.candidates?.[0]?.content?.parts || [])
-    .map(p => p.text || '')
-    .join('');
-  return text.trim();
+    const data = await r.json();
+    if (!r.ok) {
+      // Return readable error for the card instead of empty text
+      const pretty = data?.error?.message ? `Gemini error: ${data.error.message}` : `Gemini HTTP ${r.status}`;
+      return pretty;
+    }
+
+    const text = (data.candidates?.[0]?.content?.parts || [])
+      .map(p => p.text || '')
+      .join('');
+    return text.trim() || '—';
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || String(e).includes('aborted'))) {
+      return 'Gemini timed out (took too long).';
+    }
+    return `Gemini error: ${msg(e)}`;
+  } finally {
+    clearTimeout(timer);
+  }
 }
