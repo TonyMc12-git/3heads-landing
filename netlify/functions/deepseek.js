@@ -45,7 +45,7 @@ async function callDeepSeek(prompt) {
           {
             role: 'system',
             content:
-              'Answer concisely in about 120–200 words, neutral tone. ' +
+              'Answer concisely in about 120–200 words. ' +
               'Do not over-explain or enumerate every nuance unless asked.'
           },
           { role: 'user', content: prompt }
