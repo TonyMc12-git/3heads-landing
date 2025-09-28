@@ -110,7 +110,16 @@ async function callGemini(prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      // keep it concise like DeepSeek
+      contents: [{
+        role: 'user',
+        parts: [{ text: `Answer concisely in about 120–200 words. Do not over-explain unless asked.\n\n${prompt}` }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 320,   // ~200 words
+        temperature: 0.2,
+        topP: 0.9
+      }
     })
   });
 
