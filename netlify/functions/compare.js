@@ -90,13 +90,13 @@ async function pickGeminiModel(apiKey) {
 
   const names = new Set((data.models || []).map(m => m.name.replace(/^models\//, "")));
 
-  if (names.has("gemini-1.5-pro")) return "gemini-1.5-pro";
-  if (names.has("gemini-1.5-flash")) return "gemini-1.5-flash";
-  if (names.has("gemini-1.5-flash-8b")) return "gemini-1.5-flash-8b";
+  if (names.has("gemini-2.5-pro")) return "gemini-2.5-pro";
+  if (names.has("gemini-2.5-flash")) return "gemini-2.5-flash";
+  if (names.has("gemini-2.5-flash-8b")) return "gemini-2.5-flash-8b";
 
   console.error("Gemini ListModels available:", [...names]);
   // safe default
-  return "gemini-1.5-flash";
+  return "gemini-2.5-flash";
 }
 
 async function callGemini(prompt) {
