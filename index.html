@@ -83,8 +83,6 @@
         <div id="results" class="cards" aria-live="polite">
           <article class="card" id="openai-card"><h3>OpenAI</h3><div class="body"></div></article>
           <article class="card" id="claude-card"><h3>Claude</h3><div class="body"></div></article>
-
-          <!-- Single "alt" card whose label + content switch between DeepSeek and Gemini -->
           <article class="card" id="alt-card"><h3 id="alt-label">DeepSeek</h3><div class="body"></div></article>
         </div>
       </section>
@@ -94,7 +92,7 @@
   <footer>© 2025 3heads.ai · Not a diagnostic tool · Puppies pending</footer>
 
   <script>
-    const COMPARE_URL  = '/.netlify/functions/compare';   // OpenAI + Claude (+ optional Gemini)
+    const COMPARE_URL  = '/.netlify/functions/compare';   // OpenAI + Claude (+ Gemini always)
     const DEEPSEEK_URL = '/.netlify/functions/deepseek';  // DeepSeek (separate fn)
 
     const askBtn    = document.getElementById('ask-btn');
@@ -102,7 +100,6 @@
     const promptEl  = document.getElementById('prompt');
     const statusEl  = document.getElementById('status');
 
-    // Default mode: diversified (DeepSeek active)
     let useDeepSeek = true;
 
     const setCard = (id, text) => {
@@ -132,33 +129,16 @@
       setCard('openai-card',''); setCard('claude-card',''); setCard('alt-card','');
 
       try {
-        // If we want Gemini, ask compare() to include it; otherwise keep it lean
-        const compareBody = useDeepSeek ? { prompt } : { prompt, withGemini: true };
+        // Always request Gemini
+        const compareBody = { prompt, withGemini: true };
 
-        // Force a fresh call when Gemini is requested (bust any caches)
-        const compareUrl = useDeepSeek
-          ? COMPARE_URL
-          : `${COMPARE_URL}?ts=${Date.now()}`;
-
-        const compareP = fetch(compareUrl, {
+        const cr = await fetch(COMPARE_URL, {
           method: 'POST',
-          cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(compareBody)
+          body: JSON.stringify(compareBody),
+          cache: 'no-store'
         });
 
-        // Kick off DeepSeek only if we're in diversified mode
-        const deepseekP = useDeepSeek
-          ? fetch(DEEPSEEK_URL, {
-              method: 'POST',
-              cache: 'no-store',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prompt })
-            })
-          : null;
-
-        // Resolve compare (OpenAI + Claude, and Gemini if requested)
-        const cr = await compareP;
         if (!cr.ok) throw new Error(await cr.text() || `HTTP ${cr.status}`);
         const cdata = await cr.json();
 
@@ -166,14 +146,19 @@
         setCard('claude-card', cdata.claude || '—');
 
         if (useDeepSeek) {
-          // Fill DeepSeek when ready; don't block the UI
+          const deepseekP = fetch(DEEPSEEK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+            cache: 'no-store'
+          });
+
           deepseekP
             .then(r => r.ok ? r.json() : r.text().then(t => ({ error: t || `HTTP ${r.status}` })))
             .then(d => setCard('alt-card', (d && (d.deepseek || d.error)) || '—'))
             .catch(() => setCard('alt-card', 'DeepSeek error'));
         } else {
-          // Use Gemini result from compare response
-            setCard('alt-card', cdata.gemini || '—a');
+          setCard('alt-card', cdata.gemini || '—');
         }
 
         statusEl.textContent = 'Done.';
