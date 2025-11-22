@@ -48,7 +48,7 @@ async function callOpenAI(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.1',
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -71,7 +71,7 @@ async function callClaude(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-sonnet-4.5',
       max_tokens: 300,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -87,7 +87,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
 
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-3.0-pro';
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 
   const r = await fetch(endpoint, {
