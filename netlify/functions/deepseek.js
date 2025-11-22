@@ -29,6 +29,9 @@ async function callDeepSeek(prompt) {
   const key = process.env.DEEPSEEK_API_KEY;
   if (!key) throw new Error('Missing DEEPSEEK_API_KEY');
 
+  // 👇 Debug: show which key suffix is being used
+  const keySuffix = key.slice(-4);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEADLINE_MS);
 
@@ -45,8 +48,7 @@ async function callDeepSeek(prompt) {
           {
             role: 'system',
             content:
-              'Answer concisely in about 120–200 words. '
- //             'Do not over-explain or enumerate every nuance unless asked.'
+              'Answer concisely in about 120–200 words.'
           },
           { role: 'user', content: prompt }
         ],
@@ -58,7 +60,6 @@ async function callDeepSeek(prompt) {
       signal: controller.signal
     });
 
-    // Try to parse a helpful error if not OK
     if (!r.ok) {
       let errText = await r.text();
       try {
@@ -74,8 +75,7 @@ async function callDeepSeek(prompt) {
     if (e && (e.name === 'AbortError' || String(e).includes('aborted'))) {
       return 'DeepSeek timed out (kept answer short; try re-asking for more detail).';
     }
-    // Surface API-side 5xx/4xx as text in the card instead of crashing
-    return `DeepSeek error: ${msg(e)}`;
+    return `DeepSeek error (key ****${keySuffix}): ${msg(e)}`;
   } finally {
     clearTimeout(timer);
   }
