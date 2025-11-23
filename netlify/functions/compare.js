@@ -58,8 +58,7 @@ async function callOpenAI(prompt) {
     body: JSON.stringify({
       model: "gpt-5.1",
       input: prompt,
-      reasoning: { effort: "medium" },
-      tools: [{ type: "web_search" }], // MUST be an array with type
+      extra_body: { web: {} }, // 🔥 FIXED: correct web search activation
     }),
   });
 
@@ -81,17 +80,11 @@ async function callClaude(prompt) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022", // Correct latest model
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
-      tools: [
-        {
-          name: "web_search",
-          description: "Search the web",
-          input_schema: { type: "object", properties: {} },
-        },
-      ],
-      tool_choice: "auto",
+      tools: [{ name: "web_search" }], // 🔥 FIXED: supported minimal schema
+      // tool_choice removed - invalid for this tool type
     }),
   });
 
@@ -106,17 +99,15 @@ async function callGemini(prompt) {
   if (!key) throw new Error("Missing GEMINI_API_KEY");
 
   const model = "gemini-2.0-pro-exp-02-05";
-  const endpoint = `https://generativelanguage.googleapis.com/v1/${model}:generateContent?key=${key}`;
+  const endpoint =
+    `https://generativelanguage.googleapis.com/v1/${model}:generateContent?key=${key}`;
 
   const r = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      tools: [{ googleSearch: {} }],
-      safetySettings: [
-        { category: "HARM_CATEGORY_UNSPECIFIED", threshold: "BLOCK_NONE" },
-      ],
+      tools: [{ google_search: {} }], // 🔥 FIXED: correct key name
     }),
   });
 
