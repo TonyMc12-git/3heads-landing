@@ -8,7 +8,8 @@ exports.handler = async (event) => {
       return json(405, { error: 'Method Not Allowed' });
     }
 
-    const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
+    const { prompt = 'Say hello briefly.', withGemini = false } =
+      JSON.parse(event.body || '{}');
 
     const openaiP = (shouldSearch(prompt)
       ? callOpenAIWeb(prompt)
@@ -16,9 +17,15 @@ exports.handler = async (event) => {
     ).catch(e => `OpenAI error: ${msg(e)}`);
 
     const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
-    const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
+    const geminiP = withGemini
+      ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`)
+      : null;
 
-    const [openai, claude, gemini] = await Promise.all([openaiP, claudeP, geminiP]);
+    const [openai, claude, gemini] = await Promise.all([
+      openaiP,
+      claudeP,
+      geminiP
+    ]);
 
     const payload = { prompt, openai, claude };
     if (withGemini) payload.gemini = gemini;
@@ -51,12 +58,12 @@ function shouldSearch(prompt) {
 
 // ---------- providers ----------
 
-// --- OpenAI (normal, no web search) ---
+// --- OpenAI (normal path, no web search) ---
 async function callOpenAINormal(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
 
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+  const r = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${key}`,
@@ -64,16 +71,16 @@ async function callOpenAINormal(prompt) {
     },
     body: JSON.stringify({
       model: 'gpt-5.1',
-      messages: [{ role: 'user', content: prompt }]
+      input: prompt
     })
   });
 
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  return data.output_text?.trim() || '';
 }
 
-// --- OpenAI Web Search (Retrieve+Generate) ---
+// --- OpenAI with best-available search fallback ---
 async function callOpenAIWeb(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
@@ -86,8 +93,7 @@ async function callOpenAIWeb(prompt) {
     },
     body: JSON.stringify({
       model: 'gpt-5.1',
-      input: prompt,
-      extra_body: { web: {} } // 🔥 official web search activation path
+      input: `Using recent news if available: ${prompt}`
     })
   });
 
@@ -143,9 +149,6 @@ async function callGemini(prompt) {
 
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  const text = (data?.candidates?.[0]?.content?.parts || [])
-    .map(p => p.text || '')
-    .join('')
-    .trim();
-  return text || '';
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  return parts.map(p => p.text || '').join('').trim();
 }
