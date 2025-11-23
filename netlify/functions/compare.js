@@ -45,15 +45,28 @@ const json = (statusCode, obj) => ({
 
 const msg = (e) => (e && e.message) ? e.message : String(e);
 
-// Smart rule: skip search for timeless topics
+// Smart rule: search by default — only skip when clearly timeless or >3 years old facts
 function shouldSearch(prompt) {
+  // Timeless categories: maths / ancient history / programming / definitions
   const staticPatterns = [
-    /\b(\d+\s*[\+\-\*\/]\s*\d+)\b/,  // simple maths
+    /\b(\d+\s*[\+\-\*\/]\s*\d+)\b/,
     /\b(BC|AD|century|ancient|medieval)\b/i,
     /\b(explain|define|meaning of)\b/i,
     /\b(code|function|algorithm|javascript|python|programming)\b/i,
   ];
-  return !staticPatterns.some(re => re.test(prompt));
+  if (staticPatterns.some(re => re.test(prompt))) return false;
+
+  // Detect years, decide based on recency (last 3 years trigger search)
+  const yearMatch = prompt.match(/\b(19|20)\d{2}\b/);
+  if (yearMatch) {
+    const year = parseInt(yearMatch[0], 10);
+    const currentYear = new Date().getFullYear();
+    if (currentYear - year > 3) {
+      return false; // safe to trust model knowledge
+    }
+  }
+
+  return true; // default: search!
 }
 
 // ---------- providers ----------
