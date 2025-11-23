@@ -47,7 +47,6 @@ const msg = (e) => (e && e.message) ? e.message : String(e);
 
 // Smart rule: search by default — only skip when clearly timeless or >3 years old facts
 function shouldSearch(prompt) {
-  // Timeless categories: maths / ancient history / programming / definitions
   const staticPatterns = [
     /\b(\d+\s*[\+\-\*\/]\s*\d+)\b/,
     /\b(BC|AD|century|ancient|medieval)\b/i,
@@ -56,22 +55,21 @@ function shouldSearch(prompt) {
   ];
   if (staticPatterns.some(re => re.test(prompt))) return false;
 
-  // Detect years, decide based on recency (last 3 years trigger search)
   const yearMatch = prompt.match(/\b(19|20)\d{2}\b/);
   if (yearMatch) {
     const year = parseInt(yearMatch[0], 10);
     const currentYear = new Date().getFullYear();
     if (currentYear - year > 3) {
-      return false; // safe to trust model knowledge
+      return false;
     }
   }
 
-  return true; // default: search!
+  return true;
 }
 
 // ---------- providers ----------
 
-// --- OpenAI (normal mode only for now) ---
+// --- OpenAI Normal (no search) ---
 async function callOpenAINormal(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
@@ -93,9 +91,27 @@ async function callOpenAINormal(prompt) {
   return data.choices?.[0]?.message?.content ?? '';
 }
 
-// --- OpenAI Web placeholder (same as normal for now) ---
+// --- OpenAI Web Search (REAL implementation) ---
 async function callOpenAIWeb(prompt) {
-  return callOpenAINormal(prompt);
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('Missing OPENAI_API_KEY');
+
+  const r = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-5.1',
+      input: prompt,
+      web: { search: true }
+    })
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  return data.output_text?.trim() || '';
 }
 
 // --- Anthropic ---
