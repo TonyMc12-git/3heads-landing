@@ -58,12 +58,12 @@ function shouldSearch(prompt) {
 
 // ---------- providers ----------
 
-// --- OpenAI (normal path, no web search) ---
+// --- OpenAI (normal mode only for now) ---
 async function callOpenAINormal(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
 
-  const r = await fetch('https://api.openai.com/v1/responses', {
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${key}`,
@@ -71,35 +71,18 @@ async function callOpenAINormal(prompt) {
     },
     body: JSON.stringify({
       model: 'gpt-5.1',
-      input: prompt
+      messages: [{ role: 'user', content: prompt }]
     })
   });
 
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  return data.output_text?.trim() || '';
+  return data.choices?.[0]?.message?.content ?? '';
 }
 
-// --- OpenAI with best-available search fallback ---
+// --- OpenAI Web placeholder (same as normal for now) ---
 async function callOpenAIWeb(prompt) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error('Missing OPENAI_API_KEY');
-
-  const r = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'gpt-5.1',
-      input: `Using recent news if available: ${prompt}`
-    })
-  });
-
-  if (!r.ok) throw new Error(await r.text());
-  const data = await r.json();
-  return data.output_text?.trim() || '';
+  return callOpenAINormal(prompt);
 }
 
 // --- Anthropic ---
