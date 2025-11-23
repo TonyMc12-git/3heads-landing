@@ -1,4 +1,7 @@
-// netlify/functions/compare.js // Node 18+ on Netlify has global fetch. // Env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY
+// netlify/functions/compare.js 
+// Node 18+ on Netlify has global fetch. 
+// Env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY
+
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== 'POST') {
@@ -7,9 +10,9 @@ exports.handler = async (event) => {
 
     const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
 
-    const openaiP = callOpenAI(prompt).catch(e => OpenAI error: ${msg(e)});
-    const claudeP = callClaude(prompt).catch(e => Claude error: ${msg(e)});
-    const geminiP = withGemini ? callGemini(prompt).catch(e => Gemini error: ${msg(e)}) : null;
+    const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
+    const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
+    const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
 
     const [openai, claude, gemini] = await Promise.all([openaiP, claudeP, geminiP]);
 
@@ -41,7 +44,7 @@ async function callOpenAI(prompt) {
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': Bearer ${key},
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -85,7 +88,7 @@ async function callGemini(prompt) {
   if (!key) throw new Error('Missing GEMINI_API_KEY');
 
   const model = 'gemini-2.5-pro';
-  const endpoint = https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key};
+  const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 
   const r = await fetch(endpoint, {
     method: 'POST',
