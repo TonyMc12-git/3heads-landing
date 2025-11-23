@@ -8,24 +8,13 @@ exports.handler = async (event) => {
       return json(405, { error: 'Method Not Allowed' });
     }
 
-    const { prompt = 'Say hello briefly.', withGemini = false } =
-      JSON.parse(event.body || '{}');
+    const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
 
-    const openaiP = (shouldSearch(prompt)
-      ? callOpenAIWeb(prompt)
-      : callOpenAINormal(prompt)
-    ).catch(e => `OpenAI error: ${msg(e)}`);
-
+    const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
     const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
-    const geminiP = withGemini
-      ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`)
-      : null;
+    const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
 
-    const [openai, claude, gemini] = await Promise.all([
-      openaiP,
-      claudeP,
-      geminiP
-    ]);
+    const [openai, claude, gemini] = await Promise.all([openaiP, claudeP, geminiP]);
 
     const payload = { prompt, openai, claude };
     if (withGemini) payload.gemini = gemini;
@@ -45,32 +34,10 @@ const json = (statusCode, obj) => ({
 
 const msg = (e) => (e && e.message) ? e.message : String(e);
 
-// Smart rule: search by default — only skip when clearly timeless or >3 years old facts
-function shouldSearch(prompt) {
-  const staticPatterns = [
-    /\b(\d+\s*[\+\-\*\/]\s*\d+)\b/,
-    /\b(BC|AD|century|ancient|medieval)\b/i,
-    /\b(explain|define|meaning of)\b/i,
-    /\b(code|function|algorithm|javascript|python|programming)\b/i,
-  ];
-  if (staticPatterns.some(re => re.test(prompt))) return false;
-
-  const yearMatch = prompt.match(/\b(19|20)\d{2}\b/);
-  if (yearMatch) {
-    const year = parseInt(yearMatch[0], 10);
-    const currentYear = new Date().getFullYear();
-    if (currentYear - year > 3) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 // ---------- providers ----------
 
-// --- OpenAI Normal (no search) ---
-async function callOpenAINormal(prompt) {
+// --- OpenAI ---
+async function callOpenAI(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
 
@@ -89,29 +56,6 @@ async function callOpenAINormal(prompt) {
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
   return data.choices?.[0]?.message?.content ?? '';
-}
-
-// --- OpenAI Web Search (REAL implementation) ---
-async function callOpenAIWeb(prompt) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error('Missing OPENAI_API_KEY');
-
-  const r = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${key}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'gpt-5.1',
-      input: prompt,
-      web: { search: true }
-    })
-  });
-
-  if (!r.ok) throw new Error(await r.text());
-  const data = await r.json();
-  return data.output_text?.trim() || '';
 }
 
 // --- Anthropic ---
@@ -138,7 +82,7 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- Gemini (unchanged) ---
+// --- Gemini (simple single call, like others) ---
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
@@ -156,11 +100,15 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ]
+      // No generationConfig to mirror OpenAI's simplicity and avoid MAX_TOKENS surprises
     })
   });
 
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  return parts.map(p => p.text || '').join('').trim();
+  const text = (data?.candidates?.[0]?.content?.parts || [])
+    .map(p => p.text || '')
+    .join('')
+    .trim();
+  return text || '';
 }
