@@ -10,7 +10,11 @@ exports.handler = async (event) => {
 
     const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
 
-    const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
+    const openaiP = (shouldSearch(prompt)
+      ? callOpenAIWeb(prompt)
+      : callOpenAINormal(prompt)
+    ).catch(e => `OpenAI error: ${msg(e)}`);
+
     const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
     const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
 
@@ -34,10 +38,21 @@ const json = (statusCode, obj) => ({
 
 const msg = (e) => (e && e.message) ? e.message : String(e);
 
+// Smart rule: skip search for timeless topics
+function shouldSearch(prompt) {
+  const staticPatterns = [
+    /\b(\d+\s*[\+\-\*\/]\s*\d+)\b/,  // simple maths
+    /\b(BC|AD|century|ancient|medieval)\b/i,
+    /\b(explain|define|meaning of)\b/i,
+    /\b(code|function|algorithm|javascript|python|programming)\b/i,
+  ];
+  return !staticPatterns.some(re => re.test(prompt));
+}
+
 // ---------- providers ----------
 
-// --- OpenAI ---
-async function callOpenAI(prompt) {
+// --- OpenAI (normal, no web search) ---
+async function callOpenAINormal(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
 
@@ -56,6 +71,29 @@ async function callOpenAI(prompt) {
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
   return data.choices?.[0]?.message?.content ?? '';
+}
+
+// --- OpenAI Web Search (Retrieve+Generate) ---
+async function callOpenAIWeb(prompt) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('Missing OPENAI_API_KEY');
+
+  const r = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-5.1',
+      input: prompt,
+      extra_body: { web: {} } // 🔥 official web search activation path
+    })
+  });
+
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  return data.output_text?.trim() || '';
 }
 
 // --- Anthropic ---
@@ -82,7 +120,7 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- Gemini (simple single call, like others) ---
+// --- Gemini (unchanged) ---
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
@@ -100,7 +138,6 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ]
-      // No generationConfig to mirror OpenAI's simplicity and avoid MAX_TOKENS surprises
     })
   });
 
