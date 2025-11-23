@@ -10,6 +10,7 @@ exports.handler = async (event) => {
 
     const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
 
+    // Each head = its own native search capability
     const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
     const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
     const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
@@ -37,28 +38,37 @@ const msg = (e) => (e && e.message) ? e.message : String(e);
 // ---------- providers ----------
 
 // --- OpenAI ---
+// Default: search enabled via "web" tool
 async function callOpenAI(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
 
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+  const r = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-5.1',
-      messages: [{ role: 'user', content: prompt }]
+      model: "gpt-5.1",
+      messages: [{ role: "user", content: prompt }],
+      tools: { web: {} },  // <-- enable model-native web access
+      tool_choice: "auto"  // let OpenAI decide when to use search
     })
   });
 
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  return extractOpenAI(data);
+}
+
+function extractOpenAI(data) {
+  // "responses" API returns output inside "output_text"
+  return data.output_text?.trim() || '';
 }
 
 // --- Anthropic ---
+// Enable tool_choice:web_search
 async function callClaude(prompt) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('Missing ANTHROPIC_API_KEY');
@@ -71,9 +81,10 @@ async function callClaude(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
+      model: "claude-3-5-sonnet-20240620",
+      messages: [{ role: "user", content: prompt }],
       max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
+      tool_choice: { type: "web_search" } // <-- Use Claude's official web search tool
     })
   });
 
@@ -82,7 +93,8 @@ async function callClaude(prompt) {
   return data.content?.[0]?.text ?? '';
 }
 
-// --- Gemini (simple single call, like others) ---
+// --- Gemini ---
+// Native Google Search grounding via "tools"
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
@@ -99,8 +111,8 @@ async function callGemini(prompt) {
           role: 'user',
           parts: [{ text: prompt }]
         }
-      ]
-      // No generationConfig to mirror OpenAI's simplicity and avoid MAX_TOKENS surprises
+      ],
+      tools: [{ google_search: {} }]  // <-- enable Google Search grounding
     })
   });
 
