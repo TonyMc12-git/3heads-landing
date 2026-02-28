@@ -41,8 +41,8 @@ async function callOpenAI(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-4o-search-preview',  // Special model for web search
-      web_search_options: {},  // Enable web search
+      model: 'gpt-4o-search-preview',
+      web_search_options: {},
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -68,10 +68,10 @@ async function callClaude(prompt) {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
-      // Enable web search
+      // Enable web search - use latest version
       tools: [
         {
-          type: "web_search_20250305",
+          type: "web_search_20260209",
           name: "web_search"
         }
       ]
@@ -88,7 +88,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  const model = 'gemini-2.0-flash-exp';  
+  const model = 'gemini-2.0-flash-exp';
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
@@ -101,10 +101,12 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ],
-      // Enable Google Search grounding - correct syntax
-      tools: [{
-        google_search_retrieval: {}
-      }]
+      // Enable Google Search grounding - CORRECT syntax for Gemini 2.x
+      tools: [
+        {
+          google_search: {}
+        }
+      ]
     })
   });
   
