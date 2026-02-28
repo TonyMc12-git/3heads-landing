@@ -41,14 +41,9 @@ async function callOpenAI(prompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'gpt-4o',  // gpt-5.1 doesn't exist yet - using gpt-4o which supports tools
-      messages: [{ role: 'user', content: prompt }],
-      // Enable web search via prediction tools
-      tools: [
-        {
-          type: "web_search"
-        }
-      ]
+      model: 'gpt-4o-search-preview',  // Special model for web search
+      web_search_options: {},  // Enable web search
+      messages: [{ role: 'user', content: prompt }]
     })
   });
   
@@ -93,7 +88,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  const model = 'gemini-2.0-flash-exp';  // Updated to a model that supports grounding
+  const model = 'gemini-2.0-flash-exp';  
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
@@ -106,12 +101,10 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ],
-      // Enable Google Search grounding
-      tools: [
-        {
-          googleSearch: {}
-        }
-      ]
+      // Enable Google Search grounding - correct syntax
+      tools: [{
+        google_search_retrieval: {}
+      }]
     })
   });
   
