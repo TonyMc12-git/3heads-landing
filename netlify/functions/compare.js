@@ -102,7 +102,7 @@ async function callGemini(prompt) {
         }
       ],
       // Enable Google Search grounding - CORRECT syntax for Gemini 2.x
-//      tools: [
+      tools: [
         {
           google_search: {}
         }
