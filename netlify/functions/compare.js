@@ -8,32 +8,15 @@ exports.handler = async (event) => {
     }
     const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
     
-    // Call them one at a time, not simultaneously
-    let openai, claude, gemini;
+    // Back to parallel calls like the original
+    const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
+    const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
+    const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
     
-    try {
-      openai = await callOpenAI(prompt);
-    } catch (e) {
-      openai = `OpenAI error: ${msg(e)}`;
-    }
-    
-    try {
-      claude = await callClaude(prompt);
-    } catch (e) {
-      claude = `Claude error: ${msg(e)}`;
-    }
-    
-    if (withGemini) {
-      try {
-        gemini = await callGemini(prompt);
-      } catch (e) {
-        gemini = `Gemini error: ${msg(e)}`;
-      }
-    }
+    const [openai, claude, gemini] = await Promise.all([openaiP, claudeP, geminiP]);
     
     const payload = { prompt, openai, claude };
     if (withGemini) payload.gemini = gemini;
-    
     return json(200, payload);
   } catch (err) {
     return json(500, { error: msg(err) });
@@ -50,7 +33,7 @@ const msg = (e) => (e && e.message) ? e.message : String(e);
 
 // ---------- providers ----------
 
-// --- OpenAI with Web Search ---
+// --- OpenAI with Web Search (THIS WAS WORKING) ---
 async function callOpenAI(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('Missing OPENAI_API_KEY');
@@ -73,7 +56,7 @@ async function callOpenAI(prompt) {
   return data.choices?.[0]?.message?.content ?? '';
 }
 
-// --- Anthropic (Claude) with Web Search ---
+// --- Anthropic (Claude) with Web Search - FIX THE RESPONSE EXTRACTION ---
 async function callClaude(prompt) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('Missing ANTHROPIC_API_KEY');
@@ -101,37 +84,34 @@ async function callClaude(prompt) {
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
   
-  const textBlocks = data.content
+  // Get ALL text content blocks (important for web search responses)
+  const textContent = data.content
     ?.filter(block => block.type === 'text')
     .map(block => block.text)
-    .join('\n\n') ?? '';
+    .join('\n\n');
     
-  return textBlocks;
+  return textContent || '';
 }
 
-// --- Gemini with Google Search Grounding ---
+// --- Gemini - FIX MODEL AND SYNTAX ---
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  const model = 'gemini-2.5-flash';
-  const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+  // Try the stable production model
+  const model = 'gemini-1.5-pro';
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }]
-        }
-      ],
-      tools: [
-        {
-          google_search: {}
-        }
-      ]
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      tools: [{
+        googleSearchRetrieval: {}
+      }]
     })
   });
   
