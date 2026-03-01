@@ -8,17 +8,28 @@ exports.handler = async (event) => {
     }
     const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
     
-    // Call all APIs in parallel, but don't let one failure stop the others
-    const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
-    const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
-    const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
+    // Call them one at a time, not simultaneously
+    let openai, claude, gemini;
     
-    // Use Promise.allSettled instead of Promise.all - waits for all, returns whatever succeeded
-    const results = await Promise.allSettled([openaiP, claudeP, geminiP]);
+    try {
+      openai = await callOpenAI(prompt);
+    } catch (e) {
+      openai = `OpenAI error: ${msg(e)}`;
+    }
     
-    const openai = results[0].status === 'fulfilled' ? results[0].value : `OpenAI timed out or errored`;
-    const claude = results[1].status === 'fulfilled' ? results[1].value : `Claude timed out or errored`;
-    const gemini = withGemini && results[2].status === 'fulfilled' ? results[2].value : (withGemini ? `Gemini timed out or errored` : null);
+    try {
+      claude = await callClaude(prompt);
+    } catch (e) {
+      claude = `Claude error: ${msg(e)}`;
+    }
+    
+    if (withGemini) {
+      try {
+        gemini = await callGemini(prompt);
+      } catch (e) {
+        gemini = `Gemini error: ${msg(e)}`;
+      }
+    }
     
     const payload = { prompt, openai, claude };
     if (withGemini) payload.gemini = gemini;
@@ -78,7 +89,6 @@ async function callClaude(prompt) {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
-      // Enable web search
       tools: [
         {
           type: "web_search_20260209",
@@ -91,7 +101,6 @@ async function callClaude(prompt) {
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
   
-  // Extract all text blocks from content array (Claude returns multiple blocks when using tools)
   const textBlocks = data.content
     ?.filter(block => block.type === 'text')
     .map(block => block.text)
@@ -105,7 +114,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  const model = 'gemini-2.5-flash';  // Use stable model, not experimental
+  const model = 'gemini-2.5-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
@@ -118,7 +127,6 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ],
-      // Enable Google Search grounding
       tools: [
         {
           google_search: {}
