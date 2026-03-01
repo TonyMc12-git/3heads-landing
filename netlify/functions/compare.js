@@ -68,7 +68,7 @@ async function callClaude(prompt) {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
-      // Enable web search - use latest version
+      // Enable web search
       tools: [
         {
           type: "web_search_20260209",
@@ -80,7 +80,14 @@ async function callClaude(prompt) {
   
   if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
-  return data.content?.[0]?.text ?? '';
+  
+  // Extract all text blocks from content array (Claude returns multiple blocks when using tools)
+  const textBlocks = data.content
+    ?.filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('\n\n') ?? '';
+    
+  return textBlocks;
 }
 
 // --- Gemini with Google Search Grounding ---
@@ -88,7 +95,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  const model = 'gemini-2.0-flash-exp';
+  const model = 'gemini-2.5-flash';  // Use stable model, not experimental
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
@@ -101,7 +108,7 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ],
-      // Enable Google Search grounding - CORRECT syntax for Gemini 2.x
+      // Enable Google Search grounding - CORRECT syntax for Gemini 2.x/3.x
       tools: [
         {
           google_search: {}
