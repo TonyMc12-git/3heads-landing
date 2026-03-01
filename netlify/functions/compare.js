@@ -93,13 +93,13 @@ async function callClaude(prompt) {
   return textContent || '';
 }
 
-// --- Gemini with Google Search Grounding - CORRECTED ---
+// --- Gemini - FIX MODEL AND SYNTAX ---
 async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  // Use stable gemini-2.5-flash model with v1beta endpoint
-  const model = 'gemini-2.5-flash';
+  // Try the stable production model
+  const model = 'gemini-1.5-pro';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
@@ -109,9 +109,8 @@ async function callGemini(prompt) {
       contents: [{
         parts: [{ text: prompt }]
       }],
-      // Correct syntax for Gemini 2.5
       tools: [{
-        googleSearch: {}
+        googleSearchRetrieval: {}
       }]
     })
   });
