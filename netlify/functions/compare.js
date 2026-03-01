@@ -88,7 +88,7 @@ async function callGemini(prompt) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('Missing GEMINI_API_KEY');
   
-  const model = 'gemini-2.5-pro';
+  const model = 'gemini-2.0-flash-exp';
   const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
   
   const r = await fetch(endpoint, {
@@ -102,11 +102,11 @@ async function callGemini(prompt) {
         }
       ],
       // Enable Google Search grounding - CORRECT syntax for Gemini 2.x
-//      tools: [
-//        {
-//          google_search: {}
-//        }
-//      ]
+      tools: [
+        {
+          google_search: {}
+        }
+      ]
     })
   });
   
