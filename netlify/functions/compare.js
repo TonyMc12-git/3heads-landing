@@ -124,12 +124,3 @@ async function callGemini(prompt) {
     .trim();
   return text || '';
 }
-  
-  if (!r.ok) throw new Error(await r.text());
-  const data = await r.json();
-  const text = (data?.candidates?.[0]?.content?.parts || [])
-    .map(p => p.text || '')
-    .join('')
-    .trim();
-  return text || '';
-}
