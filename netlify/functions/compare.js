@@ -7,12 +7,22 @@ exports.handler = async (event) => {
       return json(405, { error: 'Method Not Allowed' });
     }
     const { prompt = 'Say hello briefly.', withGemini = false } = JSON.parse(event.body || '{}');
+    
+    // Call all APIs in parallel, but don't let one failure stop the others
     const openaiP = callOpenAI(prompt).catch(e => `OpenAI error: ${msg(e)}`);
     const claudeP = callClaude(prompt).catch(e => `Claude error: ${msg(e)}`);
     const geminiP = withGemini ? callGemini(prompt).catch(e => `Gemini error: ${msg(e)}`) : null;
-    const [openai, claude, gemini] = await Promise.all([openaiP, claudeP, geminiP]);
+    
+    // Use Promise.allSettled instead of Promise.all - waits for all, returns whatever succeeded
+    const results = await Promise.allSettled([openaiP, claudeP, geminiP]);
+    
+    const openai = results[0].status === 'fulfilled' ? results[0].value : `OpenAI timed out or errored`;
+    const claude = results[1].status === 'fulfilled' ? results[1].value : `Claude timed out or errored`;
+    const gemini = withGemini && results[2].status === 'fulfilled' ? results[2].value : (withGemini ? `Gemini timed out or errored` : null);
+    
     const payload = { prompt, openai, claude };
     if (withGemini) payload.gemini = gemini;
+    
     return json(200, payload);
   } catch (err) {
     return json(500, { error: msg(err) });
@@ -108,7 +118,7 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ],
-      // Enable Google Search grounding - CORRECT syntax for Gemini 2.x/3.x
+      // Enable Google Search grounding
       tools: [
         {
           google_search: {}
